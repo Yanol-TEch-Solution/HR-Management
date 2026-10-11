@@ -52,9 +52,24 @@ function HRDashboard() {
    * =========================================================
    */
 
-  const totalEmployees = employees.length
+  const isEmployeeTerminatedOrArchived = (employee) => {
+    if (!employee) return false
+    const status = String(employee.employmentStatus || employee.status || '').toLowerCase()
+    return Boolean(
+      employee.isArchived ||
+      status === 'terminated' ||
+      status === 'archived'
+    )
+  }
 
-  const activeEmployees = employees.filter(
+  const activeRosterEmployees = useMemo(
+    () => employees.filter((emp) => !isEmployeeTerminatedOrArchived(emp)),
+    [employees]
+  )
+
+  const totalEmployees = activeRosterEmployees.length
+
+  const activeEmployees = activeRosterEmployees.filter(
     (employee) =>
       employee.employmentStatus === 'Active' ||
       employee.status === 'Active'
@@ -62,7 +77,7 @@ function HRDashboard() {
 
   const onLeaveEmployees = useMemo(() => {
     const todayStr = new Date().toISOString().slice(0, 10)
-    const onLeaveFromStatus = employees.filter(
+    const onLeaveFromStatus = activeRosterEmployees.filter(
       (employee) =>
         employee.employmentStatus === 'On Leave' ||
         employee.status === 'On Leave'
@@ -76,7 +91,7 @@ function HRDashboard() {
     }).length
 
     return Math.max(onLeaveFromStatus, activeApprovedLeaveCount)
-  }, [employees, leaveRequests])
+  }, [activeRosterEmployees, leaveRequests])
 
   const pendingLeaveCount = useMemo(() => {
     return leaveRequests.filter(
@@ -85,7 +100,7 @@ function HRDashboard() {
   }, [leaveRequests])
 
   const departments = new Set(
-    employees
+    activeRosterEmployees
       .map((employee) => employee.department)
       .filter(Boolean)
   ).size
@@ -741,7 +756,13 @@ function HRDashboard() {
             value={stat.value}
             icon={stat.icon}
             iconVariant={['blue', 'green', 'orange', 'violet'][statIndex]}
-            employees={employees}
+            employees={
+              stat.title === 'Active Employees'
+                ? activeRosterEmployees.filter((e) => e.employmentStatus === 'Active' || e.status === 'Active')
+                : stat.title === 'On Leave'
+                  ? activeRosterEmployees.filter((e) => e.employmentStatus === 'On Leave' || e.status === 'On Leave')
+                  : activeRosterEmployees
+            }
             showAvatars
             animationDelay={statIndex * 120}
           />

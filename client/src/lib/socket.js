@@ -4,7 +4,7 @@ import { getToken } from './auth'
 // Socket.IO connects directly to the backend in development.
 // The Vite proxy no longer fronts Socket.IO — connect to the backend URL
 // unless VITE_SOCKET_URL is explicitly set (production same-origin).
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000'
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.PROD ? undefined : 'http://localhost:4000')
 
 let socket = null
 

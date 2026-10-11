@@ -468,9 +468,13 @@ function Inbox({ basePath = '/employer/inbox', canStartChat = false }) {
   // Mark active contact as read
   useEffect(() => {
     if (activeContactId) {
-      markContactRead(activeContactId)
+      const hasUnread = messages.some((m) => m.from === 'them' && !m.read)
+      const contactUnread = (activeContact?.unread || 0) > 0
+      if (hasUnread || contactUnread) {
+        markContactRead(activeContactId)
+      }
     }
-  }, [activeContactId, markContactRead])
+  }, [activeContactId, activeContact?.unread, messages, markContactRead])
 
   // Reset thread tools when changing active contact
   useEffect(() => {

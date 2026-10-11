@@ -24,7 +24,12 @@ io.use((socket, next) => {
 })
 
 io.on('connection', (socket) => {
-  socket.join(`user:${socket.user.userId}`)
+  const uid = socket.user?.userId || socket.user?.id
+  if (uid) {
+    socket.join(`user:${uid}`)
+    socket.join(`user:${String(uid)}`)
+    socket.join(`user:${Number(uid)}`)
+  }
 })
 
 server.on('error', (error) => {

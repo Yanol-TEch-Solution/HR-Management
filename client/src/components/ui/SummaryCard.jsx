@@ -60,11 +60,26 @@ export default function SummaryCard({
   valueLabel = 'People',
   employees = [],
   showAvatars = false,
+  showArchived = false,
   onClick,
   className = '',
   animationDelay = 0,
 }) {
   const [clicked, setClicked] = useState(false)
+
+  const isTerminated = (emp) => {
+    if (!emp) return false
+    const status = String(emp.employmentStatus || emp.status || '').toLowerCase()
+    return Boolean(
+      emp.isArchived ||
+      status === 'terminated' ||
+      status === 'archived'
+    )
+  }
+
+  const avatarEmployees = showArchived
+    ? employees
+    : employees.filter((emp) => !isTerminated(emp))
 
   function handleClick() {
     if (!onClick) return
@@ -137,9 +152,9 @@ export default function SummaryCard({
           </p>
         </div>
 
-        {showAvatars && employees.length > 0 && (
+        {showAvatars && avatarEmployees.length > 0 && (
           <div className="flex items-center pb-0.5 pl-2">
-            {employees.slice(0, 3).map((employee, index) => (
+            {avatarEmployees.slice(0, 3).map((employee, index) => (
               <div
                 key={employee?.id || employee?.employeeId || index}
                 className={`relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white text-[8px] font-bold ${index > 0 ? '-ml-2' : ''} ${avatarColors[index % avatarColors.length]}`}
@@ -157,9 +172,9 @@ export default function SummaryCard({
               </div>
             ))}
 
-            {employees.length > 3 && (
+            {avatarEmployees.length > 3 && (
               <span className="-ml-2 flex h-8 min-w-8 items-center justify-center rounded-full border-2 border-white bg-white/80 px-1.5 text-[9px] font-bold text-slate-500 shadow-sm">
-                +{Math.max(employees.length - 3, 0)}
+                +{Math.max(avatarEmployees.length - 3, 0)}
               </span>
             )}
           </div>

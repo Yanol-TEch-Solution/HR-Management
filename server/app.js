@@ -1,6 +1,8 @@
 import './env.js'
 import express from 'express'
 import cors from 'cors'
+import path from 'node:path'
+import { existsSync } from 'node:fs'
 
 import authRoutes      from './routes/auth.routes.js'
 import employerRoutes   from './routes/employer.routes.js'
@@ -35,6 +37,22 @@ app.use('/api/messages', messagesRoutes)
 app.post('/api/announcements', ...requirePermission('announcements.create'))
 app.delete('/api/announcements/:id', ...requirePermission('announcements.delete'))
 app.use('/api/announcements', announcementsRoutes)
+
+// ─── Serve client SPA bundle in production if built ──────────
+const clientDist = path.resolve(process.cwd(), 'client/dist')
+const distAlt = path.resolve(process.cwd(), '../client/dist')
+const distPath = existsSync(clientDist) ? clientDist : (existsSync(distAlt) ? distAlt : null)
+
+if (distPath) {
+  app.use(express.static(distPath))
+  app.use((req, res, next) => {
+    if (req.method !== 'GET') return next()
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+      return next()
+    }
+    return res.sendFile(path.join(distPath, 'index.html'))
+  })
+}
 
 // ─── 404 fallback ─────────────────────────────────────────────
 app.use((_req, res) => {

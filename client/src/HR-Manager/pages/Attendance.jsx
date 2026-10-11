@@ -1427,7 +1427,13 @@ function Attendance() {
    * not the current search/department filter.
    */
   const totalEmployees =
-    employees.length
+    employees.filter(
+      (employee) =>
+        !employee.isArchived &&
+        employee.status !== 'Terminated' &&
+        employee.employmentStatus !== 'Terminated' &&
+        employee.status !== 'Archived'
+    ).length
 
   const activeEmployees =
     employees.filter(

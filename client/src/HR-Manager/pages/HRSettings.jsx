@@ -311,11 +311,10 @@ function ListEditor({
               <button
                 type="button"
                 onClick={() => removeItem(item)}
-                className={`rounded-lg p-1.5 transition ${
-                  hasEmployees
+                className={`rounded-lg p-1.5 transition ${hasEmployees
                     ? 'text-slate-300 hover:text-rose-600 hover:bg-rose-50'
                     : 'text-slate-400 hover:bg-white hover:text-red-600'
-                }`}
+                  }`}
                 title={
                   hasEmployees
                     ? `Cannot delete: ${assignedCount} employee(s) assigned`
@@ -522,7 +521,7 @@ function HRSettings() {
         if (active) {
           setAccountError(
             requestError.message ||
-              'Could not load your account details.',
+            'Could not load your account details.',
           )
         }
       })
@@ -591,7 +590,7 @@ function HRSettings() {
     } catch (requestError) {
       setAccountError(
         requestError.message ||
-          'Could not save your account details.',
+        'Could not save your account details.',
       )
     } finally {
       setAccountSaving(false)
@@ -610,12 +609,12 @@ function HRSettings() {
 
       setAccountMessage(
         data?.message ||
-          'Confirmation link sent. Check the new address.',
+        'Confirmation link sent. Check the new address.',
       )
     } catch (requestError) {
       setAccountError(
         requestError.message ||
-          'Could not resend the confirmation email.',
+        'Could not resend the confirmation email.',
       )
     } finally {
       setResending(false)
@@ -667,17 +666,17 @@ function HRSettings() {
 
       setPasswordMessage(
         data?.message ||
-          'Password changed successfully.',
+        'Password changed successfully.',
       )
 
       // The temporary-password warning should go away without a page reload.
       fetchMyAccount()
         .then((result) => applyAccount(result?.user))
-        .catch(() => {})
+        .catch(() => { })
     } catch (requestError) {
       setPasswordError(
         requestError.message ||
-          'Could not change your password.',
+        'Could not change your password.',
       )
     } finally {
       setPasswordSaving(false)
@@ -731,10 +730,10 @@ function HRSettings() {
         if (!response.ok) {
           throw new Error(
             data.message ||
-              describeAuthFailure(response, data) ||
-              (response.status === 502 || response.status === 503
-                ? 'Server is temporarily unavailable. Please make sure the server is running.'
-                : `Failed to load HR settings (${response.status})`),
+            describeAuthFailure(response, data) ||
+            (response.status === 502 || response.status === 503
+              ? 'Server is temporarily unavailable. Please make sure the server is running.'
+              : `Failed to load HR settings (${response.status})`),
           )
         }
 
@@ -768,7 +767,7 @@ function HRSettings() {
         if (active) {
           setError(
             requestError.message ||
-              'Failed to load HR settings.',
+            'Failed to load HR settings.',
           )
         }
       } finally {
@@ -869,7 +868,7 @@ function HRSettings() {
             (response.status === 502 || response.status === 503
               ? 'Server is temporarily unavailable. Please make sure the server is running.'
               : `Failed to save HR settings (${response.status})`)) +
-            details,
+          details,
         )
       }
 
@@ -913,7 +912,7 @@ function HRSettings() {
     } catch (requestError) {
       setError(
         requestError.message ||
-          'Failed to save HR settings.',
+        'Failed to save HR settings.',
       )
     } finally {
       setSaving(false)
@@ -1454,15 +1453,15 @@ function HRSettings() {
             <p className="mt-2 text-xs text-slate-500">
               These four times drive the employee punch buttons directly, with no
               restart. <strong className="font-semibold text-slate-700">Check-In
-              Opens</strong> is when the employee&rsquo;s Check In button becomes
+                Opens</strong> is when the employee&rsquo;s Check In button becomes
               available; <strong className="font-semibold text-slate-700">On-Time
-              Cutoff</strong> is where lateness starts counting. Nothing closes: an
+                Cutoff</strong> is where lateness starts counting. Nothing closes: an
               employee who arrives late can still check in, and the minutes past the
               cutoff are recorded against them. The same applies to check-out —
               the button opens at <strong className="font-semibold text-slate-700">
-              Check-Out Opens</strong> and stays available, while{' '}
+                Check-Out Opens</strong> and stays available, while{' '}
               <strong className="font-semibold text-slate-700">Scheduled Check-Out
-              End</strong> is what an early departure or overtime is measured
+                End</strong> is what an early departure or overtime is measured
               against. This way no employee can be locked out of recording their
               own day.
             </p>
@@ -1507,11 +1506,10 @@ function HRSettings() {
                 return (
                   <div
                     key={punchWindow.label}
-                    className={`rounded-2xl border px-4 py-3.5 ${
-                      valid
+                    className={`rounded-2xl border px-4 py-3.5 ${valid
                         ? 'border-emerald-200 bg-emerald-50/60'
                         : 'border-rose-200 bg-rose-50/60'
-                    }`}
+                      }`}
                   >
                     <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                       {punchWindow.label}
@@ -1524,11 +1522,10 @@ function HRSettings() {
                     </p>
 
                     <p
-                      className={`mt-1 text-xs font-semibold ${
-                        valid
+                      className={`mt-1 text-xs font-semibold ${valid
                           ? 'text-emerald-700'
                           : 'text-rose-700'
-                      }`}
+                        }`}
                     >
                       {valid
                         ? 'Available — the punch button opens and closes at these times (Ethiopian Time).'
@@ -1568,18 +1565,16 @@ function HRSettings() {
                       : false,
                   )
                 }
-                className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all ${
-                  settings.attendanceConfiguration?.geoRestrictionEnabled !== false
+                className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all ${settings.attendanceConfiguration?.geoRestrictionEnabled !== false
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                     : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
-                }`}
+                  }`}
               >
                 <span
-                  className={`h-2 w-2 rounded-full ${
-                    settings.attendanceConfiguration?.geoRestrictionEnabled !== false
+                  className={`h-2 w-2 rounded-full ${settings.attendanceConfiguration?.geoRestrictionEnabled !== false
                       ? 'animate-pulse bg-emerald-500'
                       : 'bg-amber-500'
-                  }`}
+                    }`}
                 />
                 {settings.attendanceConfiguration?.geoRestrictionEnabled !== false
                   ? 'Geofence Enforced (Active)'
@@ -1653,11 +1648,10 @@ function HRSettings() {
                     </p>
 
                     <span
-                      className={`rounded px-2 py-0.5 text-[11px] font-bold ${
-                        settings.attendanceConfiguration?.geoRestrictionEnabled !== false
+                      className={`rounded px-2 py-0.5 text-[11px] font-bold ${settings.attendanceConfiguration?.geoRestrictionEnabled !== false
                           ? 'bg-emerald-100 text-emerald-800'
                           : 'bg-amber-100 text-amber-800'
-                      }`}
+                        }`}
                     >
                       {settings.attendanceConfiguration?.geoRestrictionEnabled !== false
                         ? 'Enforcing Geofence'
@@ -1720,12 +1714,12 @@ function HRSettings() {
                 onValidateRemove={
                   key === 'departments'
                     ? (dept) => {
-                        const count = departmentUsage[dept] || 0
-                        if (count > 0) {
-                          return `Cannot delete department "${dept}": ${count} active employee${count > 1 ? 's are' : ' is'} assigned to it. Please reassign all employees in Employee Management before deleting.`
-                        }
-                        return null
+                      const count = departmentUsage[dept] || 0
+                      if (count > 0) {
+                        return `Cannot delete department "${dept}": ${count} active employee${count > 1 ? 's are' : ' is'} assigned to it. Please reassign all employees in Employee Management before deleting.`
                       }
+                      return null
+                    }
                     : null
                 }
                 onChange={(value) =>

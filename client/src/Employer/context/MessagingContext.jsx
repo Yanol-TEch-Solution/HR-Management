@@ -190,6 +190,7 @@ export function MessagingProvider({ children, portalType = 'employer' }) {
   const channelRef = useRef(null)
 
   const upsertMessage = useCallback((contactId, message, replaceId) => {
+    if (!message || !contactId) return
     const key = String(contactId)
     setThreads((prev) => {
       const current = prev[key] || []
@@ -198,13 +199,35 @@ export function MessagingProvider({ children, portalType = 'employer' }) {
         nextMessages = current.map((m) => (m.id === replaceId ? message : m))
       } else {
         const existingIndex = current.findIndex((m) => m.id === message.id)
-        if (existingIndex === -1) {
-          nextMessages = [...current, message]
-        } else if (!message.pending && isSameOrNewer(current[existingIndex], message)) {
-          nextMessages = [...current]
-          nextMessages[existingIndex] = message
+        if (existingIndex !== -1) {
+          if (!message.pending && isSameOrNewer(current[existingIndex], message)) {
+            nextMessages = [...current]
+            nextMessages[existingIndex] = message
+          } else {
+            return prev
+          }
         } else {
-          return prev
+          // Robust deduplication: check if there's already a message with identical text and direction
+          // that is either pending, or sent within 3 seconds
+          const duplicateIndex = current.findIndex((m) => {
+            if (m.from !== message.from || m.text !== message.text) return false
+            if (m.pending || message.pending) return true
+            const timeDiff = Math.abs(
+              new Date(m.createdAt || 0).getTime() - new Date(message.createdAt || 0).getTime()
+            )
+            return !Number.isNaN(timeDiff) && timeDiff < 3000
+          })
+
+          if (duplicateIndex !== -1) {
+            nextMessages = [...current]
+            nextMessages[duplicateIndex] = {
+              ...current[duplicateIndex],
+              ...message,
+              pending: Boolean(current[duplicateIndex].pending && message.pending),
+            }
+          } else {
+            nextMessages = [...current, message]
+          }
         }
       }
 
@@ -382,15 +405,78 @@ export function MessagingProvider({ children, portalType = 'employer' }) {
   }, [isHR])
 
   const removeMessages = useCallback((contactId, ids) => {
-    const idSet = new Set(ids.map(String))
-    const key = String(contactId)
+    const idSet = new Set((ids || []).map(String).filter(Boolean))
+    if (idSet.size === 0) return
+
     setThreads((prev) => {
-      const current = prev[key] || []
-      const nextMessages = current.filter((m) => !idSet.has(m.id))
+      let changed = false
+      const next = {}
+
+      for (const [key, msgs] of Object.entries(prev)) {
+        if (!Array.isArray(msgs)) {
+          next[key] = msgs
+          continue
+        }
+        const filtered = msgs.filter((m) => !idSet.has(String(m?.id)))
+        if (filtered.length !== msgs.length) {
+          changed = true
+        }
+        next[key] = filtered
+      }
+
+      if (contactId && !next[String(contactId)]) {
+        next[String(contactId)] = []
+      }
+
       const store = getLocalSharedStore()
-      store.threads[key] = nextMessages
-      saveLocalSharedStore(store)
-      return { ...prev, [key]: nextMessages }
+      if (store.threads) {
+        for (const [key, msgs] of Object.entries(next)) {
+          store.threads[key] = msgs
+        }
+        saveLocalSharedStore(store)
+      }
+
+      setContacts((prevContacts) =>
+        prevContacts.map((c) => {
+          const cId = String(c.id)
+          const remaining = next[cId] || []
+          const newLast = remaining.length > 0 ? remaining[remaining.length - 1] : null
+          const wasLastDeleted = idSet.has(String(c.lastMessage?.id))
+
+          if (!wasLastDeleted && !changed) return c
+
+          const unreadCount = remaining.filter((m) => m.from === 'them' && !m.read).length
+
+          return {
+            ...c,
+            unread: unreadCount,
+            lastMessage: newLast
+              ? {
+                  id: newLast.id,
+                  text: newLast.text || (newLast.attachment ? `📎 ${newLast.attachment.name}` : ''),
+                  from: newLast.from,
+                  time: newLast.time,
+                  createdAt: newLast.createdAt || new Date().toISOString(),
+                  read: Boolean(newLast.read),
+                  status: newLast.status || (newLast.read ? 'read' : 'delivered'),
+                }
+              : null,
+          }
+        })
+      )
+
+      return next
+    })
+
+    setNotifications((prev) =>
+      prev.filter((item) => {
+        return !Array.from(idSet).some((deletedId) => String(item.id).includes(deletedId))
+      })
+    )
+
+    setIncomingToast((prev) => {
+      if (!prev) return null
+      return Array.from(idSet).some((deletedId) => String(prev.id).includes(deletedId)) ? null : prev
     })
   }, [])
 
@@ -437,21 +523,7 @@ export function MessagingProvider({ children, portalType = 'employer' }) {
 
       channel.onmessage = (event) => {
         const { type, payload } = event.data || {}
-        if (type === 'NEW_MESSAGE' && payload) {
-          const { senderPortal, targetContactId, message, senderName } = payload
-
-          if (isHR && senderPortal === 'employer') {
-            handleIncoming({
-              contactId: targetContactId || '1',
-              message: { ...message, from: 'them', senderName },
-            })
-          } else if (!isHR && senderPortal === 'hr') {
-            handleIncoming({
-              contactId: '2',
-              message: { ...message, from: 'them', senderName: 'HR Admin' },
-            })
-          }
-        } else if (type === 'MESSAGE_READ' && payload) {
+        if (type === 'MESSAGE_READ' && payload) {
           handleMessageRead({ contactId: payload.contactId })
         } else if (type === 'MESSAGE_UPDATED' && payload) {
           upsertMessage(String(payload.contactId), payload.message)
@@ -500,7 +572,7 @@ export function MessagingProvider({ children, portalType = 'employer' }) {
         id: tempId,
         text: trimmed,
         from: 'me',
-        senderId: isHR ? 2 : 1,
+        senderId: currentUser.id ? Number(currentUser.id) || currentUser.id : undefined,
         time: nowTime,
         createdAt: nowIso,
         read: false,
@@ -530,27 +602,6 @@ export function MessagingProvider({ children, portalType = 'employer' }) {
         ]
       })
 
-      // Broadcast immediately across all browser tabs
-      if (channelRef.current) {
-        channelRef.current.postMessage({
-          type: 'NEW_MESSAGE',
-          payload: {
-            senderPortal: isHR ? 'hr' : 'employer',
-            targetContactId: cId,
-            senderName: currentUser.name,
-            message: {
-              id: tempId,
-              text: trimmed,
-              time: nowTime,
-              createdAt: nowIso,
-              read: false,
-              attachment: null,
-              isComplain,
-            },
-          },
-        })
-      }
-
       try {
         const { message } = await sendMessageApi(cId, trimmed, { isComplain })
         upsertMessage(cId, message, tempId)
@@ -577,7 +628,7 @@ export function MessagingProvider({ children, portalType = 'employer' }) {
         id: tempId,
         text,
         from: 'me',
-        senderId: isHR ? 2 : 1,
+        senderId: currentUser.id ? Number(currentUser.id) || currentUser.id : undefined,
         time: nowTime,
         createdAt: nowIso,
         read: false,
@@ -592,7 +643,7 @@ export function MessagingProvider({ children, portalType = 'employer' }) {
         /* upload failed */
       }
     },
-    [isHR, upsertMessage]
+    [currentUser.id, upsertMessage]
   )
 
   const editMessage = useCallback(
@@ -632,7 +683,7 @@ export function MessagingProvider({ children, portalType = 'employer' }) {
       if (channelRef.current) {
         channelRef.current.postMessage({
           type: 'MESSAGE_DELETED',
-          payload: { contactId: cId, messageId },
+          payload: { contactId: cId, senderId: currentUser.id, messageId },
         })
       }
 
@@ -642,7 +693,7 @@ export function MessagingProvider({ children, portalType = 'employer' }) {
         if (prev) upsertMessage(cId, prev)
       }
     },
-    [removeMessages, upsertMessage]
+    [currentUser.id, removeMessages, upsertMessage]
   )
 
   const bulkDeleteMessages = useCallback(
@@ -656,7 +707,7 @@ export function MessagingProvider({ children, portalType = 'employer' }) {
 
       channelRef.current?.postMessage({
         type: 'MESSAGE_DELETED',
-        payload: { contactId: cId, messageIds: clean },
+        payload: { contactId: cId, senderId: currentUser.id, messageIds: clean },
       })
 
       try {
@@ -665,7 +716,7 @@ export function MessagingProvider({ children, portalType = 'employer' }) {
         removed.forEach((m) => upsertMessage(cId, m))
       }
     },
-    [removeMessages, upsertMessage]
+    [currentUser.id, removeMessages, upsertMessage]
   )
 
   const markContactRead = useCallback(
@@ -676,6 +727,10 @@ export function MessagingProvider({ children, portalType = 'employer' }) {
         [cId]: (prev[cId] || []).map((m) => (m.from === 'them' ? { ...m, read: true } : m)),
       }))
       setContacts((prev) => prev.map((c) => (String(c.id) === cId ? { ...c, unread: 0 } : c)))
+      setNotifications((prev) =>
+        prev.map((n) => (String(n.contactId) === cId ? { ...n, unread: false } : n))
+      )
+      setIncomingToast((prev) => (String(prev?.contactId) === cId ? null : prev))
       try {
         await markReadApi(cId)
       } catch {
@@ -689,6 +744,8 @@ export function MessagingProvider({ children, portalType = 'employer' }) {
     contactsRef.current.forEach((c) => {
       if ((c.unread || 0) > 0) markContactRead(c.id)
     })
+    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })))
+    setIncomingToast(null)
   }, [markContactRead])
 
   const markAllNotificationsReadAndRemove = useCallback(() => {

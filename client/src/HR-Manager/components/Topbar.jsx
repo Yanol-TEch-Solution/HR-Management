@@ -20,7 +20,7 @@ export default function HRTopbar() {
   const [notifOpen, setNotifOpen] = useState(false)
   const notifRef = useRef(null)
   const navigate = useNavigate()
-  const { totalUnread, notifications: msgNotifications, markAllNotificationsReadAndRemove, dismissNotification } = useMessaging()
+  const { totalUnread, notifications: msgNotifications, markAllNotificationsReadAndRemove, dismissNotification, markContactRead } = useMessaging()
 
   const [notifications, setNotifications] = useState([])
 
@@ -224,6 +224,7 @@ export default function HRTopbar() {
                   const unread = (n.type === 'message' || n.type === 'announcement') ? n.unread : !readIds.has(n.id)
                   const goToMessage = () => {
                     if (n.contactId) {
+                      if (markContactRead) markContactRead(n.contactId)
                       navigate(`/hr-manager/inbox/${n.contactId}`)
                       setNotifOpen(false)
                       dismissNotification(n.id)

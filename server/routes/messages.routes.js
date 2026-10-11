@@ -592,7 +592,17 @@ router.delete('/:contactId/messages/:messageId', async (req, res) => {
       where: { id: messageId },
     })
 
-    if (!existing || existing.senderId !== currentUserId) {
+    if (!existing) {
+      return res.json({ success: true })
+    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: { role: true },
+    })
+    const isHR = isRoleHR(currentUser?.role)
+
+    if (existing.senderId !== currentUserId && !isHR) {
       return res.status(403).json({ message: 'Cannot delete this message' })
     }
 
@@ -600,16 +610,29 @@ router.delete('/:contactId/messages/:messageId', async (req, res) => {
       where: { id: messageId },
     })
 
+    const recipientId = existing.senderId === currentUserId ? existing.receiverId : existing.senderId
+
     const io = req.app.get('io')
     if (io) {
-      io.to(`user:${targetId}`).emit('message:deleted', {
-        contactId: String(currentUserId),
-        messageId,
-      })
-      io.to(`user:${currentUserId}`).emit('message:deleted', {
-        contactId: String(targetId),
-        messageId,
-      })
+      const emitDeletion = (roomUserId, contactUserId) => {
+        io.to(`user:${roomUserId}`).emit('message:deleted', {
+          contactId: String(contactUserId),
+          messageId,
+        })
+        io.to(`user:${Number(roomUserId)}`).emit('message:deleted', {
+          contactId: String(contactUserId),
+          messageId,
+        })
+      }
+
+      // Notify recipient (e.g. HR Admin)
+      emitDeletion(recipientId, currentUserId)
+      if (targetId && targetId !== recipientId) {
+        emitDeletion(targetId, currentUserId)
+      }
+
+      // Notify sender (e.g. Employee)
+      emitDeletion(currentUserId, recipientId)
     }
 
     return res.json({ success: true })
@@ -624,26 +647,55 @@ router.delete('/:contactId/messages/:messageId', async (req, res) => {
 // -------------------------------------------------------------
 router.delete('/:contactId/messages/bulk', async (req, res) => {
   try {
-    const currentUserId = Number(req.user.userId)
+    const currentUserId = Number(req.user.userId || req.user.id)
     const targetId = Number(req.params.contactId)
     const { ids } = req.body || {}
 
     if (Array.isArray(ids) && ids.length) {
-      await prisma.message.deleteMany({
-        where: {
-          id: { in: ids },
-          senderId: currentUserId,
-        },
+      const messages = await prisma.message.findMany({
+        where: { id: { in: ids } },
       })
 
-      const io = req.app.get('io')
-      if (io) {
-        ids.forEach((messageId) => {
-          io.to(`user:${targetId}`).emit('message:deleted', {
-            contactId: String(currentUserId),
-            messageId,
-          })
+      const currentUser = await prisma.user.findUnique({
+        where: { id: currentUserId },
+        select: { role: true },
+      })
+      const isHR = isRoleHR(currentUser?.role)
+
+      const allowedMessages = messages.filter(
+        (m) => m.senderId === currentUserId || isHR
+      )
+      const allowedIds = allowedMessages.map((m) => m.id)
+
+      if (allowedIds.length > 0) {
+        await prisma.message.deleteMany({
+          where: { id: { in: allowedIds } },
         })
+
+        const io = req.app.get('io')
+        if (io) {
+          allowedMessages.forEach((msg) => {
+            const recipientId =
+              msg.senderId === currentUserId ? msg.receiverId : msg.senderId
+
+            const emitDel = (roomUserId, contactUserId) => {
+              io.to(`user:${roomUserId}`).emit('message:deleted', {
+                contactId: String(contactUserId),
+                messageId: msg.id,
+              })
+              io.to(`user:${Number(roomUserId)}`).emit('message:deleted', {
+                contactId: String(contactUserId),
+                messageId: msg.id,
+              })
+            }
+
+            emitDel(recipientId, currentUserId)
+            if (targetId && targetId !== recipientId) {
+              emitDel(targetId, currentUserId)
+            }
+            emitDel(currentUserId, recipientId)
+          })
+        }
       }
     }
 

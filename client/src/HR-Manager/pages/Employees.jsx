@@ -27,7 +27,7 @@ import {
   RotateCcw,
 } from 'lucide-react'
 
-import { PageTitle, Table, TableRowMenu } from '../../components/ui'
+import { ErrorBoundary, PageTitle, Table, TableRowMenu } from '../../components/ui'
 import { useSearchParams } from 'react-router-dom'
 import { authHeaders, describeAuthFailure, downloadEmployeeResume } from '../../lib/hrApi'
 import { withEmailFromName } from '../../lib/employeeEmail'
@@ -427,103 +427,109 @@ function SectionTitle({
 ========================================================= */
 
 function EmployeeModal({
-  employee,
-  departments,
+  employee = {},
+  departments = [],
+  dynamicSettings = null,
   onClose,
   onSave,
   saving,
 }) {
-  const editing = Boolean(employee)
+  const editing = Boolean(employee && (employee.id || employee.employeeId))
 
   const [form, setForm] = useState(() => {
+    const emp = employee || {}
+    const nameParts = String(emp.name || '').trim().split(' ')
+    const fallbackFirst = nameParts[0] || ''
+    const fallbackLast = nameParts.slice(1).join(' ') || ''
+
     return {
       ...emptyForm,
-      ...employee,
+      ...emp,
 
       employeeId:
-        employee.employeeId ||
-        employee.id ||
+        emp.employeeId ||
+        emp.id ||
         '',
 
       firstName:
-        employee.firstName || '',
+        emp.firstName || fallbackFirst || '',
 
       lastName:
-        employee.lastName || '',
+        emp.lastName || fallbackLast || '',
 
       gender:
-        employee.gender || 'Male',
+        emp.gender || 'Male',
 
       dateOfBirth:
-        employee.dateOfBirth ||
-        employee.dob ||
+        emp.dateOfBirth ||
+        emp.dob ||
         '',
 
       email:
-        employee.email || '',
+        emp.email || '',
 
       phone:
-        employee.phone || '',
+        emp.phone || '',
 
       address:
-        employee.address || '',
+        emp.address || '',
 
       emergencyContact:
-        employee.emergencyContact || '',
+        emp.emergencyContact || '',
 
       department:
-        employee.department ||
-        departments[0] ||
+        emp.department ||
+        (Array.isArray(departments) && departments[0]) ||
         'HR',
 
       position:
-        employee.position ||
-        employee.jobTitle ||
+        emp.position ||
+        emp.jobTitle ||
         '',
 
       employmentType:
-        employee.employmentType ||
+        emp.employmentType ||
         'Permanent',
 
       status:
-        employee.status ||
-        employee.employmentStatus ||
+        emp.status ||
+        emp.employmentStatus ||
         'Active',
 
       hireDate:
-        employee.hireDate ||
-        employee.joinDate ||
+        emp.hireDate ||
+        emp.joinDate ||
         '',
 
       notes:
-        employee.notes || '',
+        emp.notes || '',
 
       basicSalary:
-        employee.basicSalary ?? '',
+        emp.basicSalary ?? '',
 
       transportAllowance:
-        employee.transportAllowance ?? '',
+        emp.transportAllowance ?? '',
 
       housingAllowance:
-        employee.housingAllowance ?? '',
+        emp.housingAllowance ?? '',
 
       mealAllowance:
-        employee.mealAllowance ?? '',
+        emp.mealAllowance ?? '',
 
       otherAllowance:
-        employee.otherAllowance ?? '',
+        emp.otherAllowance ?? '',
 
       bankName:
-        employee.bankName || '',
+        emp.bankName || '',
 
       bankAccount:
-        employee.bankAccount || '',
+        emp.bankAccount || '',
 
       tin:
-        employee.tin || '',
+        emp.tin || '',
 
       pensionId:
-        employee.pensionId || '',
+        emp.pensionId || '',
     }
   })
 
@@ -680,31 +686,31 @@ function EmployeeModal({
         ),
 
       bankName:
-        form.bankName.trim(),
+        String(form.bankName || '').trim(),
 
       bankAccount:
-        form.bankAccount.trim(),
+        String(form.bankAccount || '').trim(),
 
       tin:
-        form.tin.trim(),
+        String(form.tin || '').trim(),
 
       pensionId:
-        form.pensionId.trim(),
+        String(form.pensionId || '').trim(),
 
       phone:
-        form.phone.trim(),
+        String(form.phone || '').trim(),
 
       email:
-        form.email.trim(),
+        String(form.email || '').trim(),
 
       address:
-        form.address.trim(),
+        String(form.address || '').trim(),
 
       emergencyContact:
-        form.emergencyContact.trim(),
+        String(form.emergencyContact || '').trim(),
 
       notes:
-        form.notes.trim(),
+        String(form.notes || '').trim(),
     }
 
     onSave(employeeData)
@@ -887,7 +893,7 @@ function EmployeeModal({
                     value={form.department}
                     onChange={handleChange}
                   >
-                    {departments.map(
+                    {(Array.isArray(departments) && departments.length > 0 ? departments : fallback_DEPARTMENTS).map(
                       (department) => (
                         <option
                           key={department}
@@ -4146,7 +4152,14 @@ export default function Employees() {
             { key: 'archived', title: 'Archived Records', description: 'Preserved employee files', value: archivedCount, icon: Archive, iconClass: 'bg-purple-100 text-purple-600' },
           ].map((stat, statIndex) => {
             const StatIcon = stat.icon
-            const avatarEmployees = employees.slice(0, 4)
+            const avatarEmployees =
+              stat.key === 'active'
+                ? employees.filter((e) => !e.isArchived && e.status === 'Active')
+                : stat.key === 'leave'
+                  ? employees.filter((e) => !e.isArchived && e.status === 'On Leave')
+                  : stat.key === 'resigned'
+                    ? employees.filter((e) => !e.isArchived && e.status === 'Resigned')
+                    : employees.filter((e) => e.isArchived || e.status === 'Archived' || e.status === 'Terminated')
             const avatarColors = [
               'bg-sky-100 text-sky-700',
               'bg-rose-100 text-rose-700',
@@ -4478,23 +4491,27 @@ export default function Employees() {
       {/* ADD = NEW DRAWER
           EDIT = ORIGINAL MODAL */}
       {modalOpen && (
-        editingEmployee ? (
-          <EmployeeModal
-            employee={editingEmployee}
-            departments={departments}
-            onClose={closeModal}
-            onSave={handleSave}
-            saving={saving}
-          />
-        ) : (
-          <AddEmployeeDrawer
-            departments={departments}
-            employees={employees}
-            onClose={closeModal}
-            onSave={handleSave}
-            saving={saving}
-          />
-        )
+        <ErrorBoundary onReset={closeModal}>
+          {editingEmployee ? (
+            <EmployeeModal
+              employee={editingEmployee}
+              departments={departments}
+              dynamicSettings={dynamicSettings}
+              onClose={closeModal}
+              onSave={handleSave}
+              saving={saving}
+            />
+          ) : (
+            <AddEmployeeDrawer
+              dynamicSettings={dynamicSettings}
+              departments={departments}
+              employees={employees}
+              onClose={closeModal}
+              onSave={handleSave}
+              saving={saving}
+            />
+          )}
+        </ErrorBoundary>
       )}
 
       {temporaryCredentials && (

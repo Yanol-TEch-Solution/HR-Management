@@ -205,9 +205,25 @@ function HRTopbar() {
     setSearchOpen(false)
   }
 
+  const [seenLeaveIds, setSeenLeaveIds] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('hr-seen-leave-requests') || '[]')) } catch { return new Set() }
+  })
+
+  // When notifications dropdown is opened, mark pending requests as seen so the badge clears once seen
+  useEffect(() => {
+    if (notificationsOpen && pendingRequests.length > 0) {
+      const allLeaveIds = new Set([...seenLeaveIds, ...pendingRequests.map((r) => String(r.id))])
+      setSeenLeaveIds(allLeaveIds)
+      try {
+        localStorage.setItem('hr-seen-leave-requests', JSON.stringify([...allLeaveIds]))
+      } catch {}
+    }
+  }, [notificationsOpen, pendingRequests])
+
   const visibleUpdates = systemUpdates.filter((update) => !dismissedUpdates.has(update.id))
+  const unseenPendingRequests = pendingRequests.filter((r) => !seenLeaveIds.has(String(r.id)))
   const unreadMessagesCount = (messaging?.contacts || []).reduce((sum, c) => sum + (c.unread || 0), 0)
-  const notificationCount = unreadMessagesCount + pendingRequests.length
+  const notificationCount = unreadMessagesCount + unseenPendingRequests.length
 
   function dismissAllUpdates() {
     const allIds = new Set([...dismissedUpdates, ...systemUpdates.map((u) => u.id)])
@@ -215,9 +231,34 @@ function HRTopbar() {
     try {
       localStorage.setItem('hr-dismissed-updates', JSON.stringify([...allIds]))
     } catch {}
+
+    const allLeaveIds = new Set([...seenLeaveIds, ...pendingRequests.map((r) => String(r.id))])
+    setSeenLeaveIds(allLeaveIds)
+    try {
+      localStorage.setItem('hr-seen-leave-requests', JSON.stringify([...allLeaveIds]))
+    } catch {}
+
     if (messaging?.markAllRead) {
       messaging.markAllRead()
     }
+  }
+
+  function handleOpenLeaveRequest(request) {
+    const next = new Set(seenLeaveIds).add(String(request.id))
+    setSeenLeaveIds(next)
+    try {
+      localStorage.setItem('hr-seen-leave-requests', JSON.stringify([...next]))
+    } catch {}
+    setNotificationsOpen(false)
+    navigate('/hr-manager/leave#leave-review-inbox')
+  }
+
+  function handleOpenContactMessage(contact) {
+    setNotificationsOpen(false)
+    if (messaging?.markContactRead) {
+      messaging.markContactRead(contact.id)
+    }
+    navigate(`/hr-manager/inbox/${contact.id}`)
   }
 
   return (
@@ -312,7 +353,7 @@ function HRTopbar() {
               </div>
               <div className="grid grid-cols-3 gap-1 border-b border-slate-100 p-2">
                 <button type="button" onClick={() => setNotificationTab('updates')} className={`rounded-lg px-1.5 py-2 text-[11px] font-semibold ${notificationTab === 'updates' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>Updates ({visibleUpdates.length})</button>
-                <button type="button" onClick={() => setNotificationTab('leave')} className={`rounded-lg px-1.5 py-2 text-[11px] font-semibold ${notificationTab === 'leave' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>Leave ({pendingRequests.length})</button>
+                <button type="button" onClick={() => setNotificationTab('leave')} className={`rounded-lg px-1.5 py-2 text-[11px] font-semibold ${notificationTab === 'leave' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>Leave ({unseenPendingRequests.length})</button>
                 <button type="button" onClick={() => setNotificationTab('messages')} className={`rounded-lg px-1.5 py-2 text-[11px] font-semibold ${notificationTab === 'messages' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>Messages ({messaging?.totalUnread || 0})</button>
               </div>
               {notificationTab === 'updates' ? (
@@ -321,9 +362,9 @@ function HRTopbar() {
                   return <button key={update.id} type="button" onClick={() => openSystemUpdate(update)} className="flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3.5 text-left transition hover:bg-slate-50"><span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-[#0092B8]"><UpdateIcon size={17} /></span><span className="min-w-0 flex-1"><span className="block text-xs font-bold text-slate-900">{update.title}</span><span className="mt-1 block text-xs leading-5 text-slate-500">{update.message}</span><span className="mt-2 block text-[11px] font-bold text-[#0092B8]">{update.action} →</span></span></button>
                 })}</div> : <p className="px-4 py-7 text-center text-xs text-slate-500">No actionable HR updates right now.</p>
               ) : notificationTab === 'leave' ? (
-                pendingRequests.length ? <div className="max-h-72 overflow-y-auto">{pendingRequests.slice(0, 6).map((request) => <button key={request.id} type="button" onClick={() => { setNotificationsOpen(false); navigate('/hr-manager/leave#leave-review-inbox') }} className="w-full border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50"><p className="text-xs font-bold text-slate-900">{request.employeeName || 'Employee'}</p><p className="mt-1 text-xs text-slate-500">{request.leaveType || 'Leave'} · {request.days || 0} day(s)</p><p className="mt-1 text-[10px] text-slate-400">{request.startDate || '—'} to {request.endDate || '—'}</p></button>)}</div> : <p className="px-4 py-6 text-center text-xs text-slate-500">No pending leave requests.</p>
+                pendingRequests.length ? <div className="max-h-72 overflow-y-auto">{pendingRequests.slice(0, 6).map((request) => <button key={request.id} type="button" onClick={() => handleOpenLeaveRequest(request)} className="w-full border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50"><p className="text-xs font-bold text-slate-900">{request.employeeName || 'Employee'}</p><p className="mt-1 text-xs text-slate-500">{request.leaveType || 'Leave'} · {request.days || 0} day(s)</p><p className="mt-1 text-[10px] text-slate-400">{request.startDate || '—'} to {request.endDate || '—'}</p></button>)}</div> : <p className="px-4 py-6 text-center text-xs text-slate-500">No pending leave requests.</p>
               ) : (
-                messaging?.contacts?.filter((contact) => contact.lastMessage || contact.unread > 0).length ? <div className="max-h-72 overflow-y-auto">{messaging.contacts.filter((contact) => contact.lastMessage || contact.unread > 0).slice(0, 8).map((contact) => <button key={contact.id} type="button" onClick={() => { setNotificationsOpen(false); navigate(`/hr-manager/inbox/${contact.id}`) }} className="w-full border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50"><div className="flex items-center justify-between gap-3"><p className="truncate text-xs font-bold text-slate-900">{contact.name}</p>{contact.unread > 0 && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700">{contact.unread} new</span>}</div><p className="mt-1 truncate text-xs text-slate-500">{contact.lastMessage?.text || 'Open conversation'}</p></button>)}</div> : <p className="px-4 py-6 text-center text-xs text-slate-500">No employee messages yet.</p>
+                messaging?.contacts?.filter((contact) => contact.lastMessage || contact.unread > 0).length ? <div className="max-h-72 overflow-y-auto">{messaging.contacts.filter((contact) => contact.lastMessage || contact.unread > 0).slice(0, 8).map((contact) => <button key={contact.id} type="button" onClick={() => handleOpenContactMessage(contact)} className="w-full border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50"><div className="flex items-center justify-between gap-3"><p className="truncate text-xs font-bold text-slate-900">{contact.name}</p>{contact.unread > 0 && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700">{contact.unread} new</span>}</div><p className="mt-1 truncate text-xs text-slate-500">{contact.lastMessage?.text || 'Open conversation'}</p></button>)}</div> : <p className="px-4 py-6 text-center text-xs text-slate-500">No employee messages yet.</p>
               )}
             </div>
           )}
