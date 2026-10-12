@@ -13,8 +13,8 @@ function formatMessageForClient(msg, currentUserId) {
   const isMe = msg.senderId === currentUserId
   const isEdited = Boolean(
     msg.updatedAt &&
-      msg.createdAt &&
-      new Date(msg.updatedAt).getTime() - new Date(msg.createdAt).getTime() > 1000
+    msg.createdAt &&
+    new Date(msg.updatedAt).getTime() - new Date(msg.createdAt).getTime() > 1000
   )
   return {
     id: msg.id,
@@ -37,11 +37,11 @@ function formatMessageForClient(msg, currentUserId) {
     isComplain: Boolean(msg.isComplain),
     attachment: msg.attachmentUrl
       ? {
-          url: msg.attachmentUrl,
-          name: msg.attachmentName || 'attachment',
-          type: msg.attachmentType || 'application/octet-stream',
-          size: msg.attachmentSize || 0,
-        }
+        url: msg.attachmentUrl,
+        name: msg.attachmentName || 'attachment',
+        type: msg.attachmentType || 'application/octet-stream',
+        size: msg.attachmentSize || 0,
+      }
       : null,
   }
 }
@@ -113,34 +113,34 @@ router.get('/contacts', async (req, res) => {
           unread: unreadCount,
           lastMessage: lastMsg
             ? {
-                id: lastMsg.id,
-                text: lastMsg.text,
-                from: lastMsg.senderId === currentUserId ? 'me' : 'them',
-                senderId: lastMsg.senderId,
-                receiverId: lastMsg.receiverId,
-                time: new Date(lastMsg.createdAt).toLocaleTimeString('en-US', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                }),
-                createdAt:
-                  lastMsg.createdAt instanceof Date
-                    ? lastMsg.createdAt.toISOString()
-                    : lastMsg.createdAt,
-                read: Boolean(lastMsg.read),
-                status:
-                  lastMsg.senderId === currentUserId
-                    ? (lastMsg.read ? 'read' : 'delivered')
-                    : (lastMsg.read ? 'read' : 'delivered'),
-                isComplain: Boolean(lastMsg.isComplain),
-                attachment: lastMsg.attachmentUrl
-                  ? {
-                      url: lastMsg.attachmentUrl,
-                      name: lastMsg.attachmentName || 'attachment',
-                      type: lastMsg.attachmentType || 'application/octet-stream',
-                      size: lastMsg.attachmentSize || 0,
-                    }
-                  : null,
-              }
+              id: lastMsg.id,
+              text: lastMsg.text,
+              from: lastMsg.senderId === currentUserId ? 'me' : 'them',
+              senderId: lastMsg.senderId,
+              receiverId: lastMsg.receiverId,
+              time: new Date(lastMsg.createdAt).toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+              createdAt:
+                lastMsg.createdAt instanceof Date
+                  ? lastMsg.createdAt.toISOString()
+                  : lastMsg.createdAt,
+              read: Boolean(lastMsg.read),
+              status:
+                lastMsg.senderId === currentUserId
+                  ? (lastMsg.read ? 'read' : 'delivered')
+                  : (lastMsg.read ? 'read' : 'delivered'),
+              isComplain: Boolean(lastMsg.isComplain),
+              attachment: lastMsg.attachmentUrl
+                ? {
+                  url: lastMsg.attachmentUrl,
+                  name: lastMsg.attachmentName || 'attachment',
+                  type: lastMsg.attachmentType || 'application/octet-stream',
+                  size: lastMsg.attachmentSize || 0,
+                }
+                : null,
+            }
             : null,
           online: isUserOnline(user.id),
         }
