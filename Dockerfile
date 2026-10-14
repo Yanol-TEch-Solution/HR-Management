@@ -5,8 +5,7 @@ WORKDIR /build
 COPY package.json package-lock.json ./
 COPY client/package.json client/
 COPY server/package.json server/
-# lockfile contains peer ranges that conflict (plugin-react wants vite@^8, project pins vite@^6)
-RUN printf 'legacy-peer-deps=true\n' > /root/.npmrc && npm ci
+RUN npm ci
 
 COPY client client
 RUN npm run build --workspace=client
@@ -18,7 +17,7 @@ ENV NODE_ENV=production
 
 COPY package.json package-lock.json ./
 COPY server/package.json server/
-RUN printf 'legacy-peer-deps=true\nfund=false\naudit=false\n' > /root/.npmrc && npm ci --workspace=server
+RUN npm ci --workspace=server
 
 COPY server server
 COPY --from=client-build /build/client/dist client/dist
