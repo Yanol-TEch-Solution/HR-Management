@@ -30,7 +30,7 @@ import { getToken } from './auth'
  * this only ensures the token arrives.
  */
 
-const AUTH_PATH_PREFIXES = ['/api/hr-manager', '/api/announcements']
+const AUTH_PATH_PREFIXES = ['/api']
 
 // The dashboard normally calls relative paths and lets the dev server proxy
 // them. Some pages still hold an absolute development URL, so those origins are
@@ -70,12 +70,22 @@ export function installAuthenticatedFetch() {
   window.fetch = function authenticatedFetch(input, init) {
     const token = getToken()
     const options = init || {}
+    const targetUrl = resolveTarget(input)
 
     const handleResponse = (res) => {
-      if (res.status === 401 && typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+      const isAuthApi = targetUrl && (
+        targetUrl.pathname === '/api/auth/login' ||
+        targetUrl.pathname === '/api/auth/forgot-password' ||
+        targetUrl.pathname === '/api/auth/reset-password'
+      )
+      const isLoginPage = typeof window !== 'undefined' && window.location.pathname.includes('/login')
+
+      if (res.status === 401 && !isAuthApi && !isLoginPage && typeof window !== 'undefined') {
         localStorage.removeItem('user')
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login'
+        const isHr = window.location.pathname.startsWith('/hr-manager')
+        const targetLogin = isHr ? '/hr-manager/login' : '/employer/login'
+        if (window.location.pathname !== targetLogin) {
+          window.location.href = targetLogin
         }
       }
       return res

@@ -34,7 +34,7 @@ import { withEmailFromName } from '../../lib/employeeEmail'
 import { useAccess } from '../../lib/rbac'
 import TableDataTools from '../components/TableDataTools'
 
-const API_URL = 'http://localhost:4000/api/hr-manager'
+const API_URL = '/api/hr-manager'
 
 const fallback_EMPLOYMENT_TYPES = ['Permanent', 'Contractual', 'Intern']
 
@@ -1171,64 +1171,6 @@ function AddEmployeeDrawer({
   const [addingBank, setAddingBank] = useState(false)
   const [newBankName, setNewBankName] = useState('')
 
-  useEffect(() => {
-    let active = true
-    fetch(`${API_URL}/settings`, {
-      headers: authHeaders(),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (!active) return
-        setSettingLists({
-          departments: data.departments || departments || [],
-          jobTitles: data.jobTitles || [],
-          employmentTypes: data.employmentTypes || (dynamicSettings?.employmentTypes || fallback_EMPLOYMENT_TYPES),
-          employmentStatuses: data.employmentStatuses || (dynamicSettings?.employmentStatuses || fallback_STATUSES),
-        })
-        setForm((current) => ({
-          ...current,
-          department: data.departments?.includes(current.department) ? current.department : (data.departments?.[0] || ''),
-          employmentType: data.employmentTypes?.includes(current.employmentType) ? current.employmentType : (data.employmentTypes?.[0] || ''),
-          status: 'Active',
-        }))
-      })
-      .catch(() => { })
-    return () => { active = false }
-  }, [departments])
-
-  async function addSettingOption(key) {
-    const value = newSettingValue.trim()
-    if (!value) return
-    const currentList = settingLists[key] || []
-    if (currentList.some((item) => item.toLowerCase() === value.toLowerCase())) {
-      setNewSettingValue('')
-      setAddingSetting('')
-      return
-    }
-    try {
-      const currentResponse = await fetch(`${API_URL}/settings`, {
-        headers: authHeaders(),
-      })
-      const currentSettings = await currentResponse.json()
-      const updatedList = [...(currentSettings[key] || currentList), value]
-      const saveResponse = await fetch(`${API_URL}/settings`, {
-        method: 'PUT',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ ...currentSettings, [key]: updatedList }),
-      })
-      const savedSettings = await saveResponse.json()
-      if (!saveResponse.ok) throw new Error(savedSettings.message || 'Could not save option.')
-      setSettingLists((current) => ({ ...current, [key]: savedSettings[key] || updatedList }))
-      const field = { departments: 'department', jobTitles: 'position', employmentTypes: 'employmentType', employmentStatuses: 'status' }[key]
-      if (field) setForm((current) => ({ ...current, [field]: value }))
-      setNewSettingValue('')
-      setAddingSetting('')
-      setError('')
-    } catch (saveError) {
-      setError(saveError.message || 'Could not save option.')
-    }
-  }
-
   const nextEmployeeId = useMemo(() => {
     // Always use the first available 4-digit Employee ID.
     // This means an ID released by deleting an employee becomes
@@ -1267,6 +1209,64 @@ function AddEmployeeDrawer({
   })
 
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    fetch(`${API_URL}/settings`, {
+      headers: authHeaders(),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (!active) return
+        setSettingLists({
+          departments: data.departments || departments || [],
+          jobTitles: data.jobTitles || [],
+          employmentTypes: data.employmentTypes || (dynamicSettings?.employmentTypes || fallback_EMPLOYMENT_TYPES),
+          employmentStatuses: data.employmentStatuses || (dynamicSettings?.employmentStatuses || fallback_STATUSES),
+        })
+        setForm((current) => ({
+          ...current,
+          department: data.departments?.includes(current.department) ? current.department : (data.departments?.[0] || ''),
+          employmentType: data.employmentTypes?.includes(current.employmentType) ? current.employmentType : (data.employmentTypes?.[0] || ''),
+          status: 'Active',
+        }))
+      })
+      .catch(() => { })
+    return () => { active = false }
+  }, [departments, dynamicSettings])
+
+  async function addSettingOption(key) {
+    const value = newSettingValue.trim()
+    if (!value) return
+    const currentList = settingLists[key] || []
+    if (currentList.some((item) => item.toLowerCase() === value.toLowerCase())) {
+      setNewSettingValue('')
+      setAddingSetting('')
+      return
+    }
+    try {
+      const currentResponse = await fetch(`${API_URL}/settings`, {
+        headers: authHeaders(),
+      })
+      const currentSettings = await currentResponse.json()
+      const updatedList = [...(currentSettings[key] || currentList), value]
+      const saveResponse = await fetch(`${API_URL}/settings`, {
+        method: 'PUT',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ ...currentSettings, [key]: updatedList }),
+      })
+      const savedSettings = await saveResponse.json()
+      if (!saveResponse.ok) throw new Error(savedSettings.message || 'Could not save option.')
+      setSettingLists((current) => ({ ...current, [key]: savedSettings[key] || updatedList }))
+      const field = { departments: 'department', jobTitles: 'position', employmentTypes: 'employmentType', employmentStatuses: 'status' }[key]
+      if (field) setForm((current) => ({ ...current, [field]: value }))
+      setNewSettingValue('')
+      setAddingSetting('')
+      setError('')
+    } catch (saveError) {
+      setError(saveError.message || 'Could not save option.')
+    }
+  }
 
   const availableDepartments = settingLists.departments
 

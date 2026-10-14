@@ -7,13 +7,11 @@ import {
   LogOut,
   Search,
   Settings,
-  Sparkles,
   UserRound,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useMessagingOptional } from '../../Employer/context/messagingStore'
 import { authHeaders } from '../../lib/hrApi'
-import HRAssistant from './HRAssistant'
 
 const rows = (data) => {
   if (Array.isArray(data)) return data
@@ -39,7 +37,6 @@ function HRTopbar() {
   const [dismissedUpdates, setDismissedUpdates] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem('hr-dismissed-updates') || '[]')) } catch { return new Set() }
   })
-  const [assistantOpen, setAssistantOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
   const profileRef = useRef(null)
@@ -262,7 +259,6 @@ function HRTopbar() {
   }
 
   return (
-    <>
     <header className="sticky top-0 z-40 flex h-[72px] items-center justify-between border-b border-slate-200/80 bg-white/95 px-5 backdrop-blur-xl lg:px-7">
       {/* Left side */}
       <div className="flex min-w-0 items-center">
@@ -370,10 +366,6 @@ function HRTopbar() {
           )}
         </div>
 
-        <button type="button" onClick={() => setAssistantOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-xl border border-cyan-100 bg-cyan-50 px-3 text-xs font-bold text-[#0092B8] transition hover:border-cyan-200 hover:bg-cyan-100" aria-label="Open HR AI Assistant" title="HR AI Assistant">
-          <Sparkles size={16} /> <span className="hidden xl:inline">HR Assistant</span>
-        </button>
-
         {/* HR Dashboard profile / logout */}
         <div ref={profileRef} className="relative">
           <button
@@ -461,8 +453,6 @@ function HRTopbar() {
         </div>
       </div>
     </header>
-    <HRAssistant open={assistantOpen} onClose={() => setAssistantOpen(false)} />
-    </>
   )
 }
 
