@@ -97,13 +97,13 @@ export default function Login({ onLogin, onRegister, onForgotPassword }) {
 
       if (isHRPortal && !isHrAccount) {
         throw new Error(
-          "This account is not an HR Admin account. Please use the Employer login page."
+          "This account is not an HR Admin account. Please use the Employee login page."
         )
       }
 
       if (!isHRPortal && !isEmployerAccount) {
         throw new Error(
-          "This account is not an Employer account. Please use the HR Admin login page."
+          "This account is not an Employee account. Please use the HR Admin login page."
         )
       }
 

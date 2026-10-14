@@ -83,7 +83,7 @@ export function installAuthenticatedFetch() {
       if (res.status === 401 && !isAuthApi && !isLoginPage && typeof window !== 'undefined') {
         localStorage.removeItem('user')
         const isHr = window.location.pathname.startsWith('/hr-manager')
-        const targetLogin = isHr ? '/hr-manager/login' : '/employer/login'
+        const targetLogin = isHr ? '/hr-manager/login' : '/employee/login'
         if (window.location.pathname !== targetLogin) {
           window.location.href = targetLogin
         }

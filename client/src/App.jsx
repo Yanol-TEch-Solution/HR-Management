@@ -115,8 +115,17 @@ export default function App() {
 
         {/* EMPLOYEE LOGIN */}
         <Route
-          path="/employer/login"
+          path="/employee/login"
           element={<Login />}
+        />
+        <Route
+          path="/employer/login"
+          element={
+            <Navigate
+              to="/employee/login"
+              replace
+            />
+          }
         />
 
         {/* PASSWORD RESET (public - reached from the emailed link) */}
@@ -161,7 +170,7 @@ export default function App() {
           element={
             <ProtectedRoute
               allowedRole="EMPLOYEE"
-              loginPath="/employer/login"
+              loginPath="/employee/login"
             >
               <EmployerApp />
             </ProtectedRoute>

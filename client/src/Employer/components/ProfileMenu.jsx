@@ -80,7 +80,7 @@ function ProfileMenu({ compact = false, basePath = '/employer', profilePath }) {
   const close = () => setOpen(false)
   const handleLogout = async () => {
     await logout()
-    navigate('/login')
+    navigate('/employee/login')
   }
 
   const menuItemClass =
