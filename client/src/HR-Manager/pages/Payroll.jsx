@@ -25,7 +25,7 @@ import { authHeaders } from '../../lib/hrApi'
 import { exportPayrollRecordsImage } from '../lib/payroll-records-image'
 import { HR_SETTINGS } from '../data/settingsData'
 
-const API_BASE = 'http://localhost:4000/api/hr-manager'
+const API_BASE = '/api/hr-manager'
 
 const DEFAULT_PAYROLL_CONFIGURATION = {
   overtimeRateMultiplier: 1.5,

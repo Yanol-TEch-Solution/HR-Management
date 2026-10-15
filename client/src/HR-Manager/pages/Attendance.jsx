@@ -30,7 +30,7 @@ import {
   statusLabel,
 } from '../lib/attendance-status'
 
-const API_URL = 'http://localhost:4000/api/hr-manager'
+const API_URL = '/api/hr-manager'
 
 const MONTHS = [
   'January',

@@ -1,17 +1,26 @@
-// Loads .env into process.env for the API server.
-//
-// This must be the FIRST import in the server entry points, because ES module
-// bodies (and their imports) are evaluated before the importing module's own
-// code. Anything that reads process.env at module scope - for example
-// auth.controller.js capturing JWT_SECRET - would otherwise capture the value
-// before .env had been parsed.
-//
-// process.loadEnvFile is built into Node 20.12+, so no dotenv dependency.
-// It throws when no .env file exists, which is a valid deployment setup
-// (real environment variables), so the failure is deliberately swallowed.
+import path from 'node:path'
+import { existsSync } from 'node:fs'
 
-try {
-  process.loadEnvFile()
-} catch {
-  // No .env file - rely on the real environment. Not an error.
+// Candidate paths where .env might be located (server dir, root dir, cwd)
+const candidateEnvPaths = [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(import.meta.dirname, '.env'),
+  path.resolve(import.meta.dirname, '../.env'),
+]
+
+for (const envPath of candidateEnvPaths) {
+  if (existsSync(envPath)) {
+    try {
+      process.loadEnvFile(envPath)
+      break
+    } catch {
+      // Continue checking other candidates
+    }
+  }
 }
+
+// Fallback defaults so Prisma never crashes if DATABASE_URL is not provided
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'file:./dev.db'
+}
+

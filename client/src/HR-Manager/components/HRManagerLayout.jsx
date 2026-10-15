@@ -67,7 +67,7 @@ export default function HRManagerLayout() {
     let active = true
     const token = localStorage.getItem('token')
     if (token) {
-      fetch('http://localhost:4000/api/hr-manager/settings', {
+      fetch('/api/hr-manager/settings', {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((res) => res.json())

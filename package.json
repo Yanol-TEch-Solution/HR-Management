@@ -14,6 +14,7 @@
     "build": "npm run build --workspace=client",
     "preview": "npm run preview --workspace=client",
     "db:push": "npm run db:push --workspace=server",
-    "db:seed": "npm run db:seed --workspace=server"
+    "db:seed": "npm run db:seed --workspace=server",
+    "prisma:generate": "npm run prisma:generate --workspace=server"
   }
 }

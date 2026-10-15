@@ -13,7 +13,7 @@ import {
 
 import { Button, PageTitle, SummaryCard, Table } from '../../components/ui'
 
-const API_URL = 'http://localhost:4000/api/hr-manager'
+const API_URL = '/api/hr-manager'
 
 const EMPLOYMENT_TYPES = [
   'All Employment Types',
