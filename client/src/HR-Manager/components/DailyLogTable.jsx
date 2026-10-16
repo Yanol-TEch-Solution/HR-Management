@@ -49,6 +49,18 @@ function fmtHours(h) {
   return `${hours.toFixed(2)}h`
 }
 
+export function getEffectiveStatus(log) {
+  const rev = String(log?.reviewStatus || '').toUpperCase()
+  if (rev === 'APPROVED' || rev === 'ACCEPTED') {
+    return 'Present'
+  }
+  const st = String(log?.status || '')
+  if (st.toUpperCase() === 'PRESENT') return 'Present'
+  if (st.toUpperCase() === 'ABSENT' || st.toUpperCase() === 'A') return 'Absent'
+  if (st.toUpperCase() === 'LATE') return 'Late'
+  return st || (log?.checkIn ? 'Present' : 'Absent')
+}
+
 // ─────────────────────────────────────────────────────────────
 // MAIN COMPONENT: DailyLogTable (Modeled on Qirb-Alga LuxuryDataTable)
 // ─────────────────────────────────────────────────────────────
@@ -111,7 +123,8 @@ export default function DailyLogTable({
         dept.toLowerCase().includes(q)
 
       const matchDept = departmentFilter === 'All' || dept === departmentFilter
-      const matchStatus = statusFilter === 'All' || log.status === statusFilter
+      const effectiveSt = getEffectiveStatus(log)
+      const matchStatus = statusFilter === 'All' || effectiveSt === statusFilter || log.status === statusFilter
       const matchDate = !dateFilter || log.date === dateFilter
 
       return matchSearch && matchDept && matchStatus && matchDate
@@ -402,10 +415,10 @@ export default function DailyLogTable({
                       </div>
                       <span
                         className={`text-[10px] font-bold shrink-0 ${getStatusBadge(
-                          log.status
+                          getEffectiveStatus(log)
                         )}`}
                       >
-                        {log.status}
+                        {getEffectiveStatus(log)}
                       </span>
                     </div>
 
@@ -614,10 +627,10 @@ export default function DailyLogTable({
                       <td className="py-3 px-3.5 text-center">
                         <span
                           className={`inline-flex items-center text-[10px] font-bold ${getStatusBadge(
-                            log.status
+                            getEffectiveStatus(log)
                           )}`}
                         >
-                          {log.status}
+                          {getEffectiveStatus(log)}
                         </span>
                       </td>
 

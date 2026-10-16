@@ -12,7 +12,9 @@ import {
   getWorkEndDisplay,
   getCheckInCutoffDisplay,
   getAttendanceConfig,
+  parseTimeToMinutes,
 } from '../lib/workTime'
+import { formatClockLabel } from '../lib/addisTime'
 import { useAttendanceConfig } from '../hooks/useAttendanceConfig'
 import {
   fetchPunchStatusApi,
@@ -195,7 +197,7 @@ export default function PunchWidget() {
         <div className="flex items-center gap-2 rounded-xl border border-indigo-200/80 bg-indigo-50/70 dark:border-indigo-900/60 dark:bg-indigo-950/30 px-2.5 py-1 shadow-2xs">
           <div className="hidden sm:flex flex-col items-end text-[10px] leading-tight select-none">
             <span className="font-bold text-indigo-900 dark:text-indigo-200 tabular-nums">
-              In at {checkInAt}
+              In at {formatClockLabel(parseTimeToMinutes(checkInAt)) || checkInAt}
             </span>
             <span className={availability.isOvertime ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-500 dark:text-slate-400'}>
               {availability.isOvertime

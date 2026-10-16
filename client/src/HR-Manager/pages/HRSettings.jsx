@@ -61,7 +61,7 @@ const EMPTY_SETTINGS = {
     geoRestrictionEnabled: true,
     officeLatitude: 8.999654748138806,
     officeLongitude: 38.820610900000005,
-    allowedRadiusMeters: 100,
+    allowedRadiusMeters: 500,
   },
 
   companyInformation: {
@@ -457,6 +457,9 @@ function HRSettings() {
   const [error, setError] = useState('')
   const [detectingLocation, setDetectingLocation] = useState(false)
   const [locationMessage, setLocationMessage] = useState('')
+  const [locationSaving, setLocationSaving] = useState(false)
+  const [testingDistance, setTestingDistance] = useState(false)
+  const [testDistanceResult, setTestDistanceResult] = useState(null)
   const [departmentUsage, setDepartmentUsage] = useState({})
 
   const loadDepartmentUsage = async () => {
@@ -690,21 +693,163 @@ function HRSettings() {
     }
     setDetectingLocation(true)
     setLocationMessage('')
+    setTestDistanceResult(null)
+
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setDetectingLocation(false)
-        updateAttendanceConfiguration('officeLatitude', Number(pos.coords.latitude.toFixed(6)))
-        updateAttendanceConfiguration('officeLongitude', Number(pos.coords.longitude.toFixed(6)))
-        setLocationMessage(`Detected location (${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}) successfully!`)
-        setTimeout(() => setLocationMessage(''), 4000)
+      async (pos) => {
+        try {
+          const lat = Number(pos.coords.latitude.toFixed(6))
+          const lng = Number(pos.coords.longitude.toFixed(6))
+          const accuracy = Math.round(pos.coords.accuracy || 0)
+          const radius = Number(settings.attendanceConfiguration?.allowedRadiusMeters) || 500
+
+          const updatedAttendance = {
+            ...(settings.attendanceConfiguration || {}),
+            officeLatitude: lat,
+            officeLongitude: lng,
+            allowedRadiusMeters: radius,
+            geoRestrictionEnabled: settings.attendanceConfiguration?.geoRestrictionEnabled !== false,
+          }
+
+          const updatedSettings = {
+            ...settings,
+            attendanceConfiguration: updatedAttendance,
+          }
+
+          setLocationSaving(true)
+          const response = await fetch(`${API_URL}/settings`, {
+            method: 'PUT',
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify(updatedSettings),
+          })
+
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}))
+            throw new Error(errData.message || `Failed to dynamically save location (${response.status})`)
+          }
+
+          const savedData = await response.json().catch(() => ({}))
+          const finalConfig = savedData.attendanceConfiguration || updatedAttendance
+
+          setSettings((prev) => ({
+            ...prev,
+            attendanceConfiguration: finalConfig,
+          }))
+
+          setAttendanceConfig(finalConfig)
+          window.dispatchEvent(
+            new CustomEvent('attendance-config-updated', {
+              detail: finalConfig,
+            })
+          )
+
+          setLocationMessage(
+            `Office location dynamically updated & saved to (${lat}, ${lng}) with ±${accuracy}m accuracy! Broadcasted to all employees.`
+          )
+        } catch (err) {
+          setLocationMessage(`Failed to dynamically save location: ${err.message}`)
+        } finally {
+          setDetectingLocation(false)
+          setLocationSaving(false)
+        }
       },
       (err) => {
         setDetectingLocation(false)
-        setLocationMessage(`Location access failed: ${err.message}`)
-        setTimeout(() => setLocationMessage(''), 5000)
+        const reasons = {
+          1: 'Location permission was denied. Please allow location access in your browser.',
+          2: 'Your location is currently unavailable. Ensure device GPS is enabled.',
+          3: 'Location detection timed out. Please try again.',
+        }
+        setLocationMessage(reasons[err.code] || `Location access failed: ${err.message}`)
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     )
+  }
+
+  const handleTestDistance = () => {
+    if (!('geolocation' in navigator)) {
+      setLocationMessage('Geolocation is not supported by your browser.')
+      return
+    }
+
+    const officeLat = Number(settings.attendanceConfiguration?.officeLatitude)
+    const officeLng = Number(settings.attendanceConfiguration?.officeLongitude)
+    const radius = Number(settings.attendanceConfiguration?.allowedRadiusMeters) || 500
+
+    if (!officeLat || !officeLng) {
+      setLocationMessage('Office coordinates are not configured yet. Click "Set Office to My Current Location" first.')
+      return
+    }
+
+    setTestingDistance(true)
+    setTestDistanceResult(null)
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setTestingDistance(false)
+        const myLat = pos.coords.latitude
+        const myLng = pos.coords.longitude
+        const accuracy = Math.round(pos.coords.accuracy || 0)
+
+        // Haversine formula
+        const R = 6371000
+        const toRad = (d) => (d * Math.PI) / 180
+        const dLat = toRad(officeLat - myLat)
+        const dLng = toRad(officeLng - myLng)
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(toRad(myLat)) * Math.cos(toRad(officeLat)) * Math.sin(dLng / 2) ** 2
+        const distanceM = 2 * R * Math.asin(Math.sqrt(a))
+        const distanceRounded = Math.round(distanceM)
+
+        const inside = distanceRounded <= radius
+        setTestDistanceResult({
+          distanceM: distanceRounded,
+          inside,
+          accuracy,
+          myLat: myLat.toFixed(6),
+          myLng: myLng.toFixed(6),
+          radius,
+        })
+      },
+      (err) => {
+        setTestingDistance(false)
+        setLocationMessage(`Distance test failed: ${err.message}`)
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    )
+  }
+
+  const handleSaveGeofence = async () => {
+    try {
+      setLocationSaving(true)
+      setLocationMessage('')
+      const response = await fetch(`${API_URL}/settings`, {
+        method: 'PUT',
+        headers: authHeaders({
+          'Content-Type': 'application/json',
+        }),
+        body: JSON.stringify(settings),
+      })
+      if (!response.ok) {
+        throw new Error(`Failed to save settings (${response.status})`)
+      }
+      const data = await response.json().catch(() => ({}))
+      if (data?.attendanceConfiguration) {
+        setAttendanceConfig(data.attendanceConfiguration)
+        window.dispatchEvent(
+          new CustomEvent('attendance-config-updated', {
+            detail: data.attendanceConfiguration,
+          })
+        )
+      }
+      setLocationMessage('Geofence & radius settings saved and broadcasted to all employees successfully!')
+      setTimeout(() => setLocationMessage(''), 5000)
+    } catch (err) {
+      setLocationMessage(`Error saving geofence: ${err.message}`)
+    } finally {
+      setLocationSaving(false)
+    }
   }
 
   useEffect(() => {
@@ -1589,7 +1734,7 @@ function HRSettings() {
                 min="1"
                 max="10000"
                 step="1"
-                value={settings.attendanceConfiguration?.allowedRadiusMeters ?? 100}
+                value={settings.attendanceConfiguration?.allowedRadiusMeters ?? 500}
                 onChange={(value) =>
                   updateAttendanceConfiguration('allowedRadiusMeters', value)
                 }
@@ -1616,80 +1761,148 @@ function HRSettings() {
               />
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            {/* Dynamic Location Action Bar */}
+            <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={handleDetectLocation}
-                disabled={detectingLocation}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                disabled={detectingLocation || locationSaving}
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
               >
-                <LocateFixed className="h-3.5 w-3.5 text-indigo-600" />
-                {detectingLocation ? 'Detecting Location...' : 'Use My Device Location as Office Coordinates'}
+                <LocateFixed className={`h-4 w-4 ${detectingLocation ? 'animate-spin' : ''}`} />
+                {detectingLocation
+                  ? 'Detecting GPS...'
+                  : locationSaving
+                  ? 'Applying Location...'
+                  : 'Set Office to My Current Location (One-Click Dynamic Update)'}
               </button>
 
-              {locationMessage && (
-                <span className="text-xs font-medium text-emerald-600">
-                  {locationMessage}
-                </span>
-              )}
+              <button
+                type="button"
+                onClick={handleSaveGeofence}
+                disabled={locationSaving}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                <Save className="h-4 w-4 text-slate-500" />
+                {locationSaving ? 'Saving...' : 'Save Geofence Settings'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTestDistance}
+                disabled={testingDistance}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                <MapPin className="h-4 w-4 text-emerald-600" />
+                {testingDistance ? 'Checking Distance...' : 'Test My Distance to Office'}
+              </button>
             </div>
 
-            {/* Geofence Preview Card */}
+            {/* Dynamic Status / Feedback Message */}
+            {locationMessage && (
+              <div className={`mt-3 flex items-start gap-2 rounded-xl border p-3 text-xs leading-relaxed ${
+                locationMessage.toLowerCase().includes('fail') || locationMessage.toLowerCase().includes('denied') || locationMessage.toLowerCase().includes('error')
+                  ? 'border-rose-200 bg-rose-50 text-rose-800'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+              }`}>
+                {locationMessage.toLowerCase().includes('fail') || locationMessage.toLowerCase().includes('denied') || locationMessage.toLowerCase().includes('error') ? (
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                ) : (
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                )}
+                <span className="font-medium">{locationMessage}</span>
+              </div>
+            )}
+
+            {/* Test Distance Result Card */}
+            {testDistanceResult && (
+              <div
+                className={`mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 text-xs ${
+                  testDistanceResult.inside
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                    : 'border-amber-200 bg-amber-50 text-amber-900'
+                }`}
+              >
+                <div>
+                  <p className="text-sm font-bold">
+                    {testDistanceResult.inside
+                      ? '✓ You are INSIDE the office geofence'
+                      : '⚠ You are OUTSIDE the office geofence'}
+                  </p>
+                  <p className="mt-0.5 text-xs opacity-90">
+                    Your Distance: <strong>{testDistanceResult.distanceM} meters</strong> from office | Allowed: {testDistanceResult.radius}m | GPS Accuracy: ±{testDistanceResult.accuracy}m
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${
+                    testDistanceResult.inside
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-amber-600 text-white'
+                  }`}
+                >
+                  {testDistanceResult.inside ? 'Check-In Allowed' : 'Check-In Blocked'}
+                </span>
+              </div>
+            )}
+
+            {/* Geofence Live Preview Card */}
             <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-start gap-3">
-                <div className="rounded-lg bg-white p-2">
-                  <MapPin className="h-5 w-5 text-slate-700" />
+                <div className="rounded-lg bg-white p-2 shadow-sm">
+                  <MapPin className="h-5 w-5 text-indigo-600" />
                 </div>
 
                 <div className="flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-slate-800">
-                      Office Geofence Status
-                    </p>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">
+                        Office Geofence Active Configuration
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Dynamic location restriction automatically applied to all employee mobile & desktop check-ins.
+                      </p>
+                    </div>
 
                     <span
-                      className={`rounded px-2 py-0.5 text-[11px] font-bold ${settings.attendanceConfiguration?.geoRestrictionEnabled !== false
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                        settings.attendanceConfiguration?.geoRestrictionEnabled !== false
                           ? 'bg-emerald-100 text-emerald-800'
                           : 'bg-amber-100 text-amber-800'
-                        }`}
+                      }`}
                     >
                       {settings.attendanceConfiguration?.geoRestrictionEnabled !== false
-                        ? 'Enforcing Geofence'
-                        : 'Bypassing Geofence'}
+                        ? '● Geofence Enforced'
+                        : '○ Geofence Bypassed'}
                     </span>
                   </div>
-
                 </div>
               </div>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-lg bg-white p-3">
+                <div className="rounded-lg bg-white p-3 shadow-sm border border-slate-100">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                     Latitude
                   </p>
-
                   <p className="mt-1 break-all text-sm font-semibold text-slate-700">
                     {settings.attendanceConfiguration?.officeLatitude ?? 'Not Set'}
                   </p>
                 </div>
 
-                <div className="rounded-lg bg-white p-3">
+                <div className="rounded-lg bg-white p-3 shadow-sm border border-slate-100">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                     Longitude
                   </p>
-
                   <p className="mt-1 break-all text-sm font-semibold text-slate-700">
                     {settings.attendanceConfiguration?.officeLongitude ?? 'Not Set'}
                   </p>
                 </div>
 
-                <div className="rounded-lg bg-white p-3">
+                <div className="rounded-lg bg-white p-3 shadow-sm border border-slate-100">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Radius
+                    Allowed Radius
                   </p>
-
-                  <p className="mt-1 text-sm font-semibold text-slate-700">
-                    {settings.attendanceConfiguration?.allowedRadiusMeters ?? 100} meters
+                  <p className="mt-1 text-sm font-semibold text-indigo-600">
+                    {settings.attendanceConfiguration?.allowedRadiusMeters ?? 500} meters
                   </p>
                 </div>
               </div>

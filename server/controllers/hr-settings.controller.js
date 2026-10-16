@@ -5,6 +5,7 @@
 // ------------------------------------------------------------------
 
 import prisma from '../db.js'
+import { io } from '../socket.js'
 
 const DEFAULT_SETTINGS = {
   departments: [],
@@ -886,6 +887,10 @@ export async function updateHRSettings(req, res) {
     await saveSettingsToDatabase(
       nextSettings,
     )
+
+    if (io && nextSettings.attendanceConfiguration) {
+      io.emit('attendance-config-updated', nextSettings.attendanceConfiguration)
+    }
 
     res.json(nextSettings)
   } catch (error) {

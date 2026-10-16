@@ -766,13 +766,15 @@ function Inbox({ basePath = '/employer/inbox', canStartChat = false }) {
         </div>
 
         {/* "New conversation" button */}
-        <button
-          onClick={() => setNewChatOpen(true)}
-          className="inline-flex items-center gap-2 h-9 px-4 rounded-xl bg-gray-950 hover:bg-black text-white dark:bg-white dark:hover:bg-gray-200 dark:text-gray-950 text-xs font-bold transition-all shadow-xs cursor-pointer"
-        >
-          <Plus size={14} />
-          <span>New conversation</span>
-        </button>
+        {canStartChat && (
+          <button
+            onClick={() => setNewChatOpen(true)}
+            className="inline-flex items-center gap-2 h-9 px-4 rounded-xl bg-gray-950 hover:bg-black text-white dark:bg-white dark:hover:bg-gray-200 dark:text-gray-950 text-xs font-bold transition-all shadow-xs cursor-pointer"
+          >
+            <Plus size={14} />
+            <span>New conversation</span>
+          </button>
+        )}
       </div>
 
       {/* ─────────────────────────────────────────────────────────────

@@ -13,8 +13,10 @@ import {
   getAttendanceConfig,
   subscribeAttendanceConfig,
   applyPunchStatus,
+  setAttendanceConfig,
 } from '../lib/workTime'
 import { fetchPunchStatusApi, fetchAttendanceConfigApi } from '../lib/punchApi'
+import { getSocket } from '../../lib/socket'
 
 // The whole attendance configuration (schedule + geofence).
 export function useAttendanceConfig() {
@@ -28,6 +30,22 @@ export function useAttendanceConfig() {
           })
           .catch(() => {})
       })
+
+    let socket
+    try {
+      socket = getSocket()
+      if (socket) {
+        socket.on('attendance-config-updated', (cfg) => {
+          if (cfg) setAttendanceConfig(cfg)
+        })
+      }
+    } catch {}
+
+    return () => {
+      try {
+        if (socket) socket.off('attendance-config-updated')
+      } catch {}
+    }
   }, [])
 
   return useSyncExternalStore(

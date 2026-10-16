@@ -441,12 +441,10 @@ function calculateSummary(
 
     if (
       status === 'PRESENT' ||
-      (isApproved && (status === 'LATE' || status === 'PENDING_REVIEW'))
+      (isApproved && (status === 'LATE' || status === 'PENDING_REVIEW' || status === 'ABSENT' || status === 'A'))
     ) {
       present += 1
-    }
-
-    if (
+    } else if (
       status === 'ABSENT' ||
       status === 'A'
     ) {
@@ -1548,12 +1546,13 @@ function Attendance() {
         }
       }
 
-      // Optimistic update: mark as Approved so the card and button disappear immediately
+      // Optimistic update: mark as Approved and status as Present so the card and button disappear immediately
       setDatabaseRecords((current) =>
         current.map((item) =>
           item.id === record.id
             ? {
                 ...item,
+                status: 'Present',
                 reviewStatus: 'Approved',
                 reviewedBy,
                 reviewedAt: new Date().toISOString(),
@@ -2295,7 +2294,11 @@ function Attendance() {
                                     <div className={`flex ${dailyView ? 'min-w-[110px]' : 'min-w-[58px]'} flex-col items-center gap-1`}>
                                       <StatusBadge
                                         status={
-                                          record.status
+                                          (record.reviewStatus === 'Approved' ||
+                                           record.reviewStatus === 'Accepted' ||
+                                           String(record.reviewStatus || '').toUpperCase() === 'APPROVED')
+                                            ? 'PRESENT'
+                                            : record.status
                                         }
                                       />
 

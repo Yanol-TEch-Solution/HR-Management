@@ -1458,11 +1458,11 @@ function AddEmployeeDrawer({
         form.employeeId.trim(),
 
       firstName,
-      grandfatherName,
       lastName,
+      grandfatherName,
 
       name:
-        [firstName, grandfatherName, lastName].filter(Boolean).join(' '),
+        [firstName, lastName, grandfatherName].filter(Boolean).join(' '),
 
       gender:
         form.gender || 'Male',
@@ -2136,7 +2136,7 @@ function AddEmployeeDrawer({
 
                       <InfoItem
                         label="Full Name"
-                        value={[form.firstName, form.grandfatherName, form.lastName].filter(Boolean).join(' ')}
+                        value={[form.firstName, form.lastName, form.grandfatherName].filter(Boolean).join(' ')}
                       />
 
                       <InfoItem

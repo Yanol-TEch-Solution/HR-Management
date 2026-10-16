@@ -398,8 +398,23 @@ export async function employeeCheckOut(req, res) {
   } catch (error) { return fail(res, error, 'Failed to record employee check-out') }
 }
 export async function acceptLateAttendance(req, res) {
-  try { const current = await prisma.attendance.findUnique({ where: { id: req.params.id } }); if (!current) return res.status(404).json({ message: 'Attendance record not found' }); return res.json(await prisma.attendance.update({ where: { id: current.id }, data: { reviewStatus: 'Approved', reviewedBy: req.user?.name || 'HR Manager', reviewedAt: new Date().toISOString(), reviewRemarks: req.body?.remarks || null } })) }
-  catch (error) { return fail(res, error, 'Failed to approve late attendance') }
+  try {
+    const current = await prisma.attendance.findUnique({ where: { id: req.params.id } })
+    if (!current) return res.status(404).json({ message: 'Attendance record not found' })
+    const updated = await prisma.attendance.update({
+      where: { id: current.id },
+      data: {
+        status: 'Present',
+        reviewStatus: 'Approved',
+        reviewedBy: req.user?.name || 'HR Manager',
+        reviewedAt: new Date().toISOString(),
+        reviewRemarks: req.body?.remarks || null,
+      },
+    })
+    return res.json(updated)
+  } catch (error) {
+    return fail(res, error, 'Failed to approve late attendance')
+  }
 }
 
 export async function getLeaveRequests(req, res) {

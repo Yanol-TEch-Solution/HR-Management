@@ -490,7 +490,7 @@ export default function PunchCard() {
                     Shift Completed Today
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    In: <strong className="text-slate-700 dark:text-slate-200">{checkInAt}</strong> · Out: <strong className="text-slate-700 dark:text-slate-200">{checkOutAt}</strong>
+                    In: <strong className="text-slate-700 dark:text-slate-200">{formatClockLabel(parseTimeToMinutes(checkInAt)) || checkInAt}</strong> · Out: <strong className="text-slate-700 dark:text-slate-200">{formatClockLabel(parseTimeToMinutes(checkOutAt)) || checkOutAt}</strong>
                   </p>
                 </div>
               </div>
@@ -515,7 +515,7 @@ export default function PunchCard() {
               </button>
             ) : (
               <div className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-900/60">
-                <Check size={14} /> Checked In ({checkInAt})
+                <Check size={14} /> Checked In ({formatClockLabel(parseTimeToMinutes(checkInAt)) || checkInAt})
               </div>
             )}
 
@@ -532,7 +532,7 @@ export default function PunchCard() {
               </button>
             ) : checkedOut ? (
               <div className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3.5 py-2 text-xs font-bold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-900/60">
-                <Check size={14} /> Checked Out ({checkOutAt})
+                <Check size={14} /> Checked Out ({formatClockLabel(parseTimeToMinutes(checkOutAt)) || checkOutAt})
               </div>
             ) : (
               <button
@@ -556,22 +556,22 @@ export default function PunchCard() {
         <StatusCard
           icon={TrendingUp}
           label="Avg Late Time"
-          value={`${stats.avgLateMin}m`}
-          hint={`Past cutoff ${config.requiredCheckInTime || '08:30'} (${getCheckInCutoffDisplay()})`}
+          value={`${(stats.avgLateMin / 60).toFixed(1)}h`}
+          hint={`Past cutoff ${config.requiredCheckInTime || '08:30'} (${getCheckInCutoffDisplay(config)})`}
           tone="bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
         />
         <StatusCard
           icon={TrendingDown}
           label="Early Departure"
-          value={`${stats.avgEarlyMin}m`}
-          hint={`Before shift end ${config.checkOutEndTime || '19:00'} (${getCheckOutEndDisplay()})`}
+          value={`${(stats.avgEarlyMin / 60).toFixed(1)}h`}
+          hint={`Before shift end ${config.checkOutEndTime || '19:00'} (${getCheckOutEndDisplay(config)})`}
           tone="bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
         />
         <StatusCard
           icon={Clock}
           label="Overtime"
           value={`${stats.overtimeHours}h`}
-          hint={`Beyond ${config.checkOutEndTime || '19:00'} (${getCheckOutEndDisplay()})`}
+          hint={`Beyond ${config.checkOutEndTime || '19:00'} (${getCheckOutEndDisplay(config)})`}
           tone="bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
         />
         <StatusCard
@@ -580,10 +580,10 @@ export default function PunchCard() {
           value={checkedOut ? 'Completed' : checkedIn ? 'In Progress' : 'Not Started'}
           hint={
             checkedOut
-              ? `Done: In ${checkInAt} · Out ${checkOutAt}`
+              ? `Done: In ${formatClockLabel(parseTimeToMinutes(checkInAt)) || checkInAt} · Out ${formatClockLabel(parseTimeToMinutes(checkOutAt)) || checkOutAt}`
               : checkedIn
-              ? `Checked In at ${checkInAt}`
-              : `Check-in opens ${config.checkInStartTime || '08:00'} (${getWorkStartDisplay()})`
+              ? `Checked In at ${formatClockLabel(parseTimeToMinutes(checkInAt)) || checkInAt}`
+              : `Check-in opens ${config.checkInStartTime || '08:00'} (${getWorkStartDisplay(config)})`
           }
           tone={
             checkedOut

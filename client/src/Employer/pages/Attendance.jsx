@@ -510,11 +510,11 @@ function Attendance() {
               </div>
 
               <p className="text-xl font-bold text-gray-950 dark:text-gray-100 mt-1 tabular-nums">
-                {punchStats.avgLateMin}m
+                {(punchStats.avgLateMin / 60).toFixed(1)}h
               </p>
 
               <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
-                Average minutes past {getCheckInCutoffDisplay()}
+                Average hours past {getCheckInCutoffDisplay()}
               </p>
 
             </div>
@@ -536,11 +536,11 @@ function Attendance() {
               </div>
 
               <p className="text-xl font-bold text-gray-950 dark:text-gray-100 mt-1 tabular-nums">
-                {punchStats.avgEarlyMin}m
+                {(punchStats.avgEarlyMin / 60).toFixed(1)}h
               </p>
 
               <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
-                Average minutes before {getWorkEndDisplay()}
+                Average hours before {getWorkEndDisplay()}
               </p>
 
             </div>
