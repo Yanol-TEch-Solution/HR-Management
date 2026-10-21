@@ -3106,16 +3106,29 @@ function EmployeeCard({
       </div>
 
       {employee.isArchived || employee.status === 'Terminated' || employee.status === 'Archived' ? (
-        onRestore && (
-          <button
-            type="button"
-            onClick={() => onRestore(employee)}
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-purple-50 px-3 py-2 text-[11px] font-semibold text-purple-700 transition hover:bg-purple-100"
-          >
-            <RotateCcw size={13} />
-            Restore Employee
-          </button>
-        )
+        <div className="mt-2 flex items-center gap-1.5">
+          {onRestore && (
+            <button
+              type="button"
+              onClick={() => onRestore(employee)}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-purple-50 px-3 py-2 text-[11px] font-semibold text-purple-700 transition hover:bg-purple-100"
+            >
+              <RotateCcw size={13} />
+              Restore
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={() => onDelete(employee)}
+              className="flex items-center justify-center gap-1 rounded-xl bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-600 transition hover:bg-rose-100"
+              title="Remove employee permanently"
+            >
+              <Trash2 size={13} />
+              Remove
+            </button>
+          )}
+        </div>
       ) : (
         onDelete && (
           <button
@@ -3124,7 +3137,7 @@ function EmployeeCard({
             className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-semibold text-rose-600 transition hover:bg-rose-50"
           >
             <Trash2 size={13} />
-            Delete Employee
+            Terminate Employee
           </button>
         )
       )}
@@ -3301,19 +3314,34 @@ function EmployeeTable({
                             </button>
                           )}
                           {(employee.isArchived || employee.status === 'Terminated' || employee.status === 'Archived') ? (
-                            onRestore && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActionMenuId(null)
-                                  onRestore(employee)
-                                }}
-                                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-semibold text-purple-600 transition hover:bg-purple-50"
-                              >
-                                <RotateCcw size={14} className="text-purple-500" />
-                                <span>Restore</span>
-                              </button>
-                            )
+                            <>
+                              {onRestore && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActionMenuId(null)
+                                    onRestore(employee)
+                                  }}
+                                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-semibold text-purple-600 transition hover:bg-purple-50"
+                                >
+                                  <RotateCcw size={14} className="text-purple-500" />
+                                  <span>Restore</span>
+                                </button>
+                              )}
+                              {onDelete && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActionMenuId(null)
+                                    onDelete(employee)
+                                  }}
+                                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                                >
+                                  <Trash2 size={14} className="text-rose-500" />
+                                  <span>Remove Permanently</span>
+                                </button>
+                              )}
+                            </>
                           ) : (
                             onDelete && (
                               <button
@@ -3325,7 +3353,7 @@ function EmployeeTable({
                                 className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
                               >
                                 <Trash2 size={14} className="text-rose-500" />
-                                <span>Delete Employee</span>
+                                <span>Terminate Employee</span>
                               </button>
                             )
                           )}
@@ -3986,8 +4014,9 @@ export default function Employees() {
       setError('')
       setSuccessMessage('')
 
+      const isAlreadyArchived = employee.isArchived || employee.status === 'Terminated' || employee.status === 'Archived'
       const response = await fetch(
-        `${API_URL}/employees/${employee.id}`,
+        `${API_URL}/employees/${employee.id}${isAlreadyArchived ? '?permanent=true' : ''}`,
         {
           method: 'DELETE',
           headers: authHeaders(),
@@ -4006,26 +4035,27 @@ export default function Employees() {
         )
       }
 
-      const currentTimestamp = data?.terminatedAt || new Date().toISOString()
-
-      // When HR clicks Delete Employee, don't actually delete them.
-      // Instead: status = "Terminated", isArchived = true, terminatedAt = current date/time
-      setEmployees((current) =>
-        current.map((item) =>
-          item.id === employee.id
-            ? {
-                ...item,
-                status: 'Terminated',
-                employmentStatus: 'Terminated',
-                isArchived: true,
-                terminatedAt: currentTimestamp,
-              }
-            : item,
-        ),
-      )
+      if (data?.deleted || data?.permanent) {
+        setEmployees((current) => current.filter((item) => item.id !== employee.id))
+      } else {
+        const currentTimestamp = data?.terminatedAt || new Date().toISOString()
+        setEmployees((current) =>
+          current.map((item) =>
+            item.id === employee.id
+              ? {
+                  ...item,
+                  status: 'Terminated',
+                  employmentStatus: 'Terminated',
+                  isArchived: true,
+                  terminatedAt: currentTimestamp,
+                }
+              : item,
+          ),
+        )
+      }
 
       setSuccessMessage(
-        data?.message || 'Employee terminated and archived successfully. All historical records have been preserved.',
+        data?.message || 'Employee updated successfully.',
       )
       setPendingDelete(null)
     } catch (err) {
@@ -4092,37 +4122,60 @@ export default function Employees() {
   return (
     <div className="min-h-full bg-[#F3F4F6] text-slate-950">
 
-      {pendingDelete && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-xs">
-          <section role="alertdialog" aria-modal="true" aria-labelledby="delete-employee-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="flex items-center gap-3 text-rose-600 mb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600 ring-1 ring-rose-200">
-                <Trash2 size={20} />
+      {pendingDelete && (() => {
+        const isAlreadyTerminated = Boolean(
+          pendingDelete.isArchived ||
+          pendingDelete.status === 'Terminated' ||
+          pendingDelete.status === 'Archived'
+        )
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-xs">
+            <section role="alertdialog" aria-modal="true" aria-labelledby="delete-employee-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+              <div className="flex items-center gap-3 text-rose-600 mb-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600 ring-1 ring-rose-200">
+                  <Trash2 size={20} />
+                </div>
+                <div>
+                  <h2 id="delete-employee-title" className="text-base font-bold text-slate-900">
+                    {isAlreadyTerminated ? 'Remove Employee Permanently' : 'Delete Employee'}
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    {isAlreadyTerminated ? 'Irreversible removal from database' : 'Soft-delete with data preservation'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 id="delete-employee-title" className="text-base font-bold text-slate-900">Delete Employee</h2>
-                <p className="text-xs text-slate-500">Soft-delete with data preservation</p>
-              </div>
-            </div>
-            <p className="text-sm text-slate-600">
-              Are you sure you want to delete <strong>{getEmployeeName(pendingDelete)}</strong> ({getEmployeeId(pendingDelete)})?
-            </p>
-            <div className="mt-3.5 rounded-xl border border-rose-200/80 bg-rose-50/70 p-3.5 text-xs leading-relaxed text-rose-900">
-              <p className="font-semibold text-rose-950 flex items-center gap-1.5 mb-1">
-                <Check size={14} className="text-rose-700" /> Preservation Guarantee
+              <p className="text-sm text-slate-600">
+                {isAlreadyTerminated ? (
+                  <>Are you sure you want to permanently delete <strong>{getEmployeeName(pendingDelete)}</strong> ({getEmployeeId(pendingDelete)})? This action cannot be undone.</>
+                ) : (
+                  <>Are you sure you want to delete <strong>{getEmployeeName(pendingDelete)}</strong> ({getEmployeeId(pendingDelete)})?</>
+                )}
               </p>
-              This employee will <strong>not be deleted permanently</strong>. Their status will be set to <strong>Terminated</strong>, archived (<code>isArchived = true</code>), and recorded with the termination timestamp (<code>terminatedAt</code>). All attendance, leave, and payroll records are permanently preserved.
-            </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button type="button" onClick={() => setPendingDelete(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Cancel</button>
-              <button type="button" onClick={() => handleDelete(pendingDelete)} className="flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 transition">
-                <Trash2 size={15} />
-                Delete Employee
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
+              <div className="mt-3.5 rounded-xl border border-rose-200/80 bg-rose-50/70 p-3.5 text-xs leading-relaxed text-rose-900">
+                <p className="font-semibold text-rose-950 flex items-center gap-1.5 mb-1">
+                  {isAlreadyTerminated ? (
+                    <><Trash2 size={14} className="text-rose-700" /> Database Deletion</>
+                  ) : (
+                    <><Check size={14} className="text-rose-700" /> Preservation Guarantee</>
+                  )}
+                </p>
+                {isAlreadyTerminated ? (
+                  <>This employee and all associated attendance records, leave requests, payroll history, and user accounts will be <strong>permanently removed</strong> from the database.</>
+                ) : (
+                  <>This employee will <strong>not be deleted permanently</strong>. Their status will be set to <strong>Terminated</strong>, archived (<code>isArchived = true</code>), and recorded with the termination timestamp (<code>terminatedAt</code>). All attendance, leave, and payroll records are permanently preserved.</>
+                )}
+              </div>
+              <div className="mt-6 flex justify-end gap-3">
+                <button type="button" onClick={() => setPendingDelete(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Cancel</button>
+                <button type="button" onClick={() => handleDelete(pendingDelete)} className="flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 transition">
+                  <Trash2 size={15} />
+                  {isAlreadyTerminated ? 'Remove Permanently' : 'Terminate & Archive'}
+                </button>
+              </div>
+            </section>
+          </div>
+        )
+      })()}
 
       <main className="w-full max-w-[1600px] px-5 py-6 sm:px-8">
 

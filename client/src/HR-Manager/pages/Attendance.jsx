@@ -434,21 +434,26 @@ function calculateSummary(
     }
 
     const status = String(record.status || '').toUpperCase()
+    const rev = String(record.reviewStatus || '').toUpperCase()
     const isApproved =
       record.reviewStatus === 'Approved' ||
       record.reviewStatus === 'Accepted' ||
-      String(record.reviewStatus || '').toUpperCase() === 'APPROVED'
+      rev === 'APPROVED'
+    const isRejected =
+      record.reviewStatus === 'Rejected' ||
+      rev === 'REJECTED'
 
-    if (
+    if (isRejected || status === 'ABSENT' || status === 'A') {
+      absent += 1
+    } else if (
       status === 'PRESENT' ||
-      (isApproved && (status === 'LATE' || status === 'PENDING_REVIEW' || status === 'ABSENT' || status === 'A'))
+      (isApproved && record.checkOut)
     ) {
       present += 1
     } else if (
-      status === 'ABSENT' ||
-      status === 'A'
+      isApproved && !record.checkOut
     ) {
-      absent += 1
+      checkedIn += 1
     }
 
     if (
@@ -464,16 +469,19 @@ function calculateSummary(
 
     if (
       !isApproved &&
+      !isRejected &&
       (status === 'PENDING_REVIEW' ||
-       status === 'LATE')
+       status === 'LATE' ||
+       Number(record.late || 0) > 0 ||
+       rev === 'PENDING')
     ) {
       pendingReview += 1
     }
 
     if (
-      status === 'CHECKED_IN' ||
-      status ===
-        'PENDING_CHECKOUT'
+      !isApproved &&
+      (status === 'CHECKED_IN' ||
+       status === 'PENDING_CHECKOUT')
     ) {
       checkedIn += 1
     }
@@ -799,7 +807,9 @@ function AttendanceReviewCard({
   record,
   employees,
   onAccept,
+  onReject,
   acceptingId,
+  rejectingId,
 }) {
   const employee =
     employees.find(
@@ -821,6 +831,13 @@ function AttendanceReviewCard({
 
   const accepting =
     acceptingId === record.id
+
+  const rejecting =
+    rejectingId === record.id
+
+  const rev = String(record.reviewStatus || '').toUpperCase()
+  const isApproved = record.reviewStatus === 'Approved' || record.reviewStatus === 'Accepted' || rev === 'APPROVED'
+  const isRejected = record.reviewStatus === 'Rejected' || rev === 'REJECTED'
 
   return (
     <div className="rounded-2xl border border-amber-200 bg-white p-5 shadow-sm">
@@ -844,7 +861,7 @@ function AttendanceReviewCard({
 
               <StatusBadge
                 status={
-                  record.status
+                  isRejected ? 'ABSENT' : isApproved ? (record.checkOut ? 'PRESENT' : 'CHECKED_IN') : record.status
                 }
               />
             </div>
@@ -857,33 +874,61 @@ function AttendanceReviewCard({
           </div>
         </div>
 
-        {record.reviewStatus === 'Approved' || record.reviewStatus === 'Accepted' || String(record.reviewStatus || '').toUpperCase() === 'APPROVED' ? (
+        {isApproved ? (
           <span className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-700 shadow-2xs">
             <CheckCircle2 size={15} className="text-emerald-600" />
-            Accepted
+            Accepted {record.checkOut ? '(Present)' : '(Pending Checkout)'}
+          </span>
+        ) : isRejected ? (
+          <span className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2 text-xs font-bold text-red-700 shadow-2xs">
+            <X size={15} className="text-red-600" />
+            Rejected (Absent)
           </span>
         ) : (
-          <button
-            type="button"
-            disabled={accepting}
-            onClick={() =>
-              onAccept(record)
-            }
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-2xs transition hover:bg-emerald-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {accepting ? (
-              <Loader2
-                size={15}
-                className="animate-spin"
-              />
-            ) : (
-              <CheckCircle2 size={15} />
-            )}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={accepting || rejecting}
+              onClick={() =>
+                onAccept(record)
+              }
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-emerald-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {accepting ? (
+                <Loader2
+                  size={14}
+                  className="animate-spin"
+                />
+              ) : (
+                <CheckCircle2 size={14} />
+              )}
 
-            {accepting
-              ? 'Accepting...'
-              : 'Accept Late'}
-          </button>
+              {accepting
+                ? 'Accepting...'
+                : 'Accept Late'}
+            </button>
+            <button
+              type="button"
+              disabled={accepting || rejecting}
+              onClick={() =>
+                onReject(record)
+              }
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2 text-xs font-bold text-red-700 shadow-2xs transition hover:bg-red-100 hover:border-red-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {rejecting ? (
+                <Loader2
+                  size={14}
+                  className="animate-spin"
+                />
+              ) : (
+                <X size={14} />
+              )}
+
+              {rejecting
+                ? 'Rejecting...'
+                : 'Reject'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -1448,9 +1493,9 @@ function Attendance() {
           (record) => {
             const st = String(record.status || '').toUpperCase()
             const rev = String(record.reviewStatus || '').toUpperCase()
-            const isPending = st === 'PENDING_REVIEW' || st === 'LATE'
-            const isApproved = rev === 'APPROVED' || rev === 'ACCEPTED'
-            return isPending && !isApproved
+            const isDecided = rev === 'APPROVED' || rev === 'ACCEPTED' || rev === 'REJECTED'
+            const isPending = st === 'PENDING_REVIEW' || st === 'LATE' || Number(record.late || 0) > 0 || rev === 'PENDING'
+            return isPending && !isDecided
           }
         )
         .sort((a, b) =>
@@ -1482,17 +1527,22 @@ function Attendance() {
         const st = String(record.status || '').toUpperCase()
         const rev = String(record.reviewStatus || '').toUpperCase()
         const isApproved = rev === 'APPROVED' || rev === 'ACCEPTED'
-        return st === 'PRESENT' || (isApproved && (st === 'LATE' || st === 'PENDING_REVIEW'))
+        return st === 'PRESENT' || (isApproved && Boolean(record.checkOut))
       }
     ).length
 
   const todayCheckedIn =
     todayRecords.filter(
-      (record) =>
-        record.status ===
-          'CHECKED_IN' ||
-        record.status ===
-          'PENDING_CHECKOUT',
+      (record) => {
+        const st = String(record.status || '').toUpperCase()
+        const rev = String(record.reviewStatus || '').toUpperCase()
+        const isApproved = rev === 'APPROVED' || rev === 'ACCEPTED'
+        return (
+          st === 'CHECKED_IN' ||
+          st === 'PENDING_CHECKOUT' ||
+          (isApproved && !record.checkOut)
+        )
+      }
     ).length
 
   const todayPending =
@@ -1500,19 +1550,22 @@ function Attendance() {
       (record) => {
         const st = String(record.status || '').toUpperCase()
         const rev = String(record.reviewStatus || '').toUpperCase()
-        const isPending = st === 'PENDING_REVIEW' || st === 'LATE'
-        const isApproved = rev === 'APPROVED' || rev === 'ACCEPTED'
-        return isPending && !isApproved
+        const isDecided = rev === 'APPROVED' || rev === 'ACCEPTED' || rev === 'REJECTED'
+        const isPending = st === 'PENDING_REVIEW' || st === 'LATE' || Number(record.late || 0) > 0 || rev === 'PENDING'
+        return isPending && !isDecided
       }
     ).length
 
   const todayAbsent =
     todayRecords.filter(
-      (record) =>
-        record.status ===
-          'ABSENT' ||
-        record.status === 'A',
+      (record) => {
+        const st = String(record.status || '').toUpperCase()
+        const rev = String(record.reviewStatus || '').toUpperCase()
+        return rev === 'REJECTED' || st === 'ABSENT' || st === 'A'
+      }
     ).length
+
+  const [rejectingId, setRejectingId] = useState(null)
 
   async function acceptLateAttendance(
     record,
@@ -1546,13 +1599,13 @@ function Attendance() {
         }
       }
 
-      // Optimistic update: mark as Approved and status as Present so the card and button disappear immediately
+      // Optimistic update: mark as Approved. If already checked out, status is Present.
       setDatabaseRecords((current) =>
         current.map((item) =>
           item.id === record.id
             ? {
                 ...item,
-                status: 'Present',
+                status: item.checkOut ? 'Present' : item.status,
                 reviewStatus: 'Approved',
                 reviewedBy,
                 reviewedAt: new Date().toISOString(),
@@ -1591,7 +1644,9 @@ function Attendance() {
       }
 
       setSuccessMessage(
-        'Late attendance accepted successfully. The record has been approved.',
+        record.checkOut
+          ? 'Late attendance accepted. Employee completed checkout and is marked Present.'
+          : 'Late attendance accepted. Status will update to Present after employee check-out.',
       )
 
       await loadData(false)
@@ -1614,6 +1669,109 @@ function Attendance() {
       await loadData(false)
     } finally {
       setAcceptingId(null)
+    }
+  }
+
+  async function rejectLateAttendance(
+    record,
+  ) {
+    try {
+      setRejectingId(record.id)
+      setApiError('')
+      setSuccessMessage('')
+
+      const userRaw =
+        localStorage.getItem(
+          'user',
+        )
+
+      let reviewedBy =
+        'HR Administrator'
+
+      if (userRaw) {
+        try {
+          const user =
+            JSON.parse(
+              userRaw,
+            )
+
+          reviewedBy =
+            user.name ||
+            user.email ||
+            reviewedBy
+        } catch {
+          // Keep fallback reviewer name.
+        }
+      }
+
+      // Optimistic update: immediately mark as Absent without needing checkout
+      setDatabaseRecords((current) =>
+        current.map((item) =>
+          item.id === record.id
+            ? {
+                ...item,
+                status: 'Absent',
+                reviewStatus: 'Rejected',
+                reviewedBy,
+                reviewedAt: new Date().toISOString(),
+              }
+            : item,
+        ),
+      )
+
+      const response =
+        await fetch(
+          `${API_URL}/attendance/${record.id}/reject-late`,
+          {
+            method: 'PUT',
+            headers: authHeaders({
+              'Content-Type':
+                'application/json',
+            }),
+            body: JSON.stringify({
+              reviewedBy,
+              reviewRemarks:
+                'Late attendance rejected by HR.',
+            }),
+          },
+        )
+
+      const data =
+        await response
+          .json()
+          .catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            'Failed to reject late attendance.',
+        )
+      }
+
+      setSuccessMessage(
+        'Late attendance rejected. The record is automatically marked as Absent.',
+      )
+
+      await loadData(false)
+
+      window.setTimeout(() => {
+        setSuccessMessage('')
+      }, 5000)
+    } catch (error) {
+      console.error(
+        'Reject late attendance error:',
+        error,
+      )
+
+      setApiError(
+        error.message ||
+          'Failed to reject late attendance.',
+      )
+
+      // Revert on error
+      await loadData(false)
+    } finally {
+      setRejectingId(null)
     }
   }
 
@@ -1943,7 +2101,9 @@ function Attendance() {
                   record={record}
                   employees={employees}
                   onAccept={acceptLateAttendance}
+                  onReject={rejectLateAttendance}
                   acceptingId={acceptingId}
+                  rejectingId={rejectingId}
                 />
               ))}
             </div>
@@ -2294,11 +2454,16 @@ function Attendance() {
                                     <div className={`flex ${dailyView ? 'min-w-[110px]' : 'min-w-[58px]'} flex-col items-center gap-1`}>
                                       <StatusBadge
                                         status={
-                                          (record.reviewStatus === 'Approved' ||
-                                           record.reviewStatus === 'Accepted' ||
-                                           String(record.reviewStatus || '').toUpperCase() === 'APPROVED')
-                                            ? 'PRESENT'
-                                            : record.status
+                                          (() => {
+                                            const rev = String(record.reviewStatus || '').toUpperCase()
+                                            const isApproved = record.reviewStatus === 'Approved' || record.reviewStatus === 'Accepted' || rev === 'APPROVED'
+                                            const isRejected = record.reviewStatus === 'Rejected' || rev === 'REJECTED'
+                                            if (isRejected) return 'ABSENT'
+                                            if (isApproved) {
+                                              return record.checkOut ? 'PRESENT' : 'CHECKED_IN'
+                                            }
+                                            return record.status
+                                          })()
                                         }
                                       />
 
@@ -2308,6 +2473,7 @@ function Attendance() {
                                           {formatTime(
                                             record.checkIn,
                                           )}
+                                          {Number(record.late || 0) > 0 ? ` (${record.late}m late)` : ''}
                                         </span>
                                       )}
 

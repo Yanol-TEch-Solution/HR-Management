@@ -31,6 +31,7 @@ import {
   employeeCheckIn,
   employeeCheckOut,
   acceptLateAttendance,
+  rejectLateAttendance,
 
   getLeaveRequests,
   getLeaveRequest,
@@ -188,6 +189,12 @@ router.put(
   '/attendance/:id/accept-late',
   ...requirePermission('attendance.manage'),
   acceptLateAttendance,
+)
+
+router.put(
+  '/attendance/:id/reject-late',
+  ...requirePermission('attendance.manage'),
+  rejectLateAttendance,
 )
 
 // ============================================================

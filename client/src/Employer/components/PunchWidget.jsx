@@ -140,6 +140,13 @@ export default function PunchWidget() {
   }
 
   async function handleCheckOut() {
+    if (!canCheckOut) {
+      broadcastPunchFeedback({
+        tone: 'err',
+        text: `Check-out is only available at ${config.checkOutStartTime || '17:30'} (${getWorkEndDisplay(config)}).`,
+      })
+      return
+    }
     setBusy(true)
     try {
       const coords = await getPunchLocation()
@@ -211,12 +218,26 @@ export default function PunchWidget() {
           <button
             type="button"
             onClick={handleCheckOut}
-            disabled={busy}
-            title={`Check Out — Opens at ${config.checkOutStartTime} (${getWorkEndDisplay(config)})`}
-            className="h-8 px-3.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            disabled={!canCheckOut || busy}
+            title={
+              canCheckOut
+                ? `Check Out Now (${getWorkEndDisplay(config)})`
+                : `Check Out — Available at ${config.checkOutStartTime || '17:30'} (${getWorkEndDisplay(config)})`
+            }
+            className={`h-8 px-3.5 rounded-lg text-[11px] font-bold shadow-xs transition-all flex items-center gap-1.5 ${
+              canCheckOut && !busy
+                ? 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer'
+                : 'bg-slate-200 text-slate-400 dark:bg-[#1c2026] dark:text-slate-500 cursor-not-allowed border border-slate-300 dark:border-[#33383f]'
+            }`}
           >
-            {busy ? <Loader2 size={13} className="animate-spin" /> : <LogOut size={13} />}
-            <span>Check Out</span>
+            {busy ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : canCheckOut ? (
+              <LogOut size={13} />
+            ) : (
+              <Lock size={13} />
+            )}
+            <span>{canCheckOut ? 'Check Out' : `Opens ${config.checkOutStartTime || '17:30'}`}</span>
           </button>
         </div>
 

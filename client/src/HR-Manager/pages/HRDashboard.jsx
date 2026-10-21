@@ -330,119 +330,94 @@ function HRDashboard() {
 
   const attendanceChartData = useMemo(() => {
     const today = new Date()
-
     today.setHours(0, 0, 0, 0)
+    const todayDateString = today.toISOString().slice(0, 10)
 
     const days = Array.from(
       { length: 7 },
       (_, index) => {
         const date = new Date(today)
-
-        date.setDate(
-          today.getDate() -
-            (6 - index)
-        )
-
+        date.setDate(today.getDate() - (6 - index))
         return date
       }
     )
 
     return days.map((date) => {
       const year = date.getFullYear()
-
-      const month = String(
-        date.getMonth() + 1
-      ).padStart(2, '0')
-
-      const dayNumber = String(
-        date.getDate()
-      ).padStart(2, '0')
-
-      const dateString =
-        `${year}-${month}-${dayNumber}`
-
-      const dayRecords =
-        attendanceRecords.filter(
-          (record) => {
-            const recordDate =
-              String(
-                record.date || ''
-              ).slice(0, 10)
-
-            return (
-              recordDate === dateString
-            )
-          }
-        )
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const dayNumber = String(date.getDate()).padStart(2, '0')
+      const dateString = `${year}-${month}-${dayNumber}`
+      const isWeekend = date.getDay() === 0 || date.getDay() === 6
+      const isTodayOrPast = dateString <= todayDateString
 
       let present = 0
       let absent = 0
       let leave = 0
 
-      dayRecords.forEach(
-        (record) => {
-          const status = String(
-            record.status ||
-              record.attendanceStatus ||
-              record.attendance_status ||
-              ''
-          )
-            .trim()
-            .toUpperCase()
+      // Connect every active employee to attendance table records
+      activeRosterEmployees.forEach((employee) => {
+        const employeeKeys = [employee?.id, employee?.employeeId].filter(Boolean)
+        const record = attendanceRecords.find(
+          (r) => String(r.date || '').slice(0, 10) === dateString && employeeKeys.includes(r.employeeId)
+        )
 
-          if (
-            status === 'PRESENT' ||
-            status === 'LATE' ||
-            status === 'PENDING_REVIEW' ||
-            status === 'CHECKED_IN' ||
-            status === 'CHECKED IN' ||
-            status === 'COMPLETED'
-          ) {
-            present += 1
-          } else if (
-            status === 'ABSENT'
-          ) {
+        if (record) {
+          const rev = String(record.reviewStatus || '').toUpperCase()
+          const isApproved = record.reviewStatus === 'Approved' || record.reviewStatus === 'Accepted' || rev === 'APPROVED'
+          const isRejected = record.reviewStatus === 'Rejected' || rev === 'REJECTED'
+          const status = String(record.status || record.attendanceStatus || record.attendance_status || '').trim().toUpperCase()
+
+          if (isRejected || status === 'ABSENT' || status === 'A') {
             absent += 1
-          } else if (
-            status === 'LEAVE' ||
-            status === 'ON LEAVE' ||
-            status === 'ON_LEAVE'
-          ) {
+          } else if (['SL', 'AL', 'ML', 'OL', 'LEAVE', 'ON LEAVE', 'ON_LEAVE'].includes(status)) {
             leave += 1
+          } else if (status === 'PRESENT') {
+            present += 1
+          } else if (isApproved) {
+            // Late check-in accepted by HR
+            if (record.checkOut || dateString === todayDateString) {
+              present += 1
+            } else {
+              present += 1
+            }
+          } else if (status === 'LATE' || status === 'PENDING_REVIEW') {
+            // Unapproved late check-in shows as absent until HR accepts
+            absent += 1
+          } else if (status === 'CHECKED_IN' || status === 'CHECKED IN') {
+            present += 1
+          } else {
+            absent += 1
+          }
+        } else {
+          // No record for this employee: check if on approved leave
+          const isOnLeave = leaveRequests.some((req) => {
+            if (req.approvalStatus !== 'Approved') return false
+            const matchesEmp = employeeKeys.includes(req.employeeId)
+            const start = String(req.startDate || '').slice(0, 10)
+            const end = String(req.endDate || '').slice(0, 10)
+            return matchesEmp && start && end && start <= dateString && dateString <= end
+          })
+
+          if (isOnLeave) {
+            leave += 1
+          } else if (!isWeekend && isTodayOrPast) {
+            // Working day with no check-in -> Absent in attendance table
+            absent += 1
           }
         }
-      )
+      })
 
       return {
         date: dateString,
-
-        day: date.toLocaleDateString(
-          'en-US',
-          {
-            weekday: 'short',
-          }
-        ),
-
-        dateLabel:
-          date.toLocaleDateString(
-            'en-US',
-            {
-              month: 'short',
-              day: 'numeric',
-            }
-          ),
-
+        day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        dateLabel: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         present,
         absent,
         leave,
-
-        total:
-          present +
-          absent +
-          leave,
+        total: present + absent + leave,
       }
     })
-  }, [attendanceRecords])
+  }, [attendanceRecords, activeRosterEmployees, leaveRequests])
 
   /*
    * =========================================================
@@ -452,32 +427,17 @@ function HRDashboard() {
 
   const attendanceChartMax = useMemo(() => {
     const maximum = Math.max(
-      ...attendanceChartData.map(
-        (day) => day.total
-      ),
+      totalEmployees,
+      ...attendanceChartData.map((day) => day.total),
       0
     )
 
-    if (maximum <= 5) {
-      return 5
-    }
-
-    if (maximum <= 10) {
-      return 10
-    }
-
-    if (maximum <= 20) {
-      return 20
-    }
-
-    if (maximum <= 50) {
-      return 50
-    }
-
-    return Math.ceil(
-      maximum / 10
-    ) * 10
-  }, [attendanceChartData])
+    if (maximum <= 5) return 5
+    if (maximum <= 10) return 10
+    if (maximum <= 20) return 20
+    if (maximum <= 50) return 50
+    return Math.ceil(maximum / 10) * 10
+  }, [attendanceChartData, totalEmployees])
 
   /*
    * =========================================================
@@ -791,25 +751,22 @@ function HRDashboard() {
 
               <div className="mt-3 flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-violet-600" />
-
-                  <span className="text-[11px] font-medium text-slate-400">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-xs" />
+                  <span className="text-[11px] font-semibold text-slate-600">
                     Present
                   </span>
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-violet-300" />
-
-                  <span className="text-[11px] font-medium text-slate-400">
+                  <span className="h-2.5 w-2.5 rounded-full bg-rose-500 shadow-xs" />
+                  <span className="text-[11px] font-semibold text-slate-600">
                     Absent
                   </span>
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-slate-200" />
-
-                  <span className="text-[11px] font-medium text-slate-400">
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-400 shadow-xs" />
+                  <span className="text-[11px] font-semibold text-slate-600">
                     Leave
                   </span>
                 </div>
@@ -926,12 +883,12 @@ function HRDashboard() {
 
                               <div className="mt-2 space-y-1.5">
                                 <div className="flex items-center justify-between">
-                                  <span className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-violet-600" />
+                                  <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-600">
+                                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
                                     Present
                                   </span>
 
-                                  <span className="text-[10px] font-bold text-slate-800">
+                                  <span className="text-[10px] font-bold text-emerald-700">
                                     {
                                       day.present
                                     }
@@ -939,12 +896,12 @@ function HRDashboard() {
                                 </div>
 
                                 <div className="flex items-center justify-between">
-                                  <span className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-violet-300" />
+                                  <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-600">
+                                    <span className="h-2 w-2 rounded-full bg-rose-500" />
                                     Absent
                                   </span>
 
-                                  <span className="text-[10px] font-bold text-slate-800">
+                                  <span className="text-[10px] font-bold text-rose-600">
                                     {
                                       day.absent
                                     }
@@ -952,12 +909,12 @@ function HRDashboard() {
                                 </div>
 
                                 <div className="flex items-center justify-between">
-                                  <span className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-slate-200" />
+                                  <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-600">
+                                    <span className="h-2 w-2 rounded-full bg-amber-400" />
                                     Leave
                                   </span>
 
-                                  <span className="text-[10px] font-bold text-slate-800">
+                                  <span className="text-[10px] font-bold text-amber-700">
                                     {
                                       day.leave
                                     }
@@ -967,7 +924,7 @@ function HRDashboard() {
                                 <div className="mt-2 border-t border-slate-100 pt-1.5">
                                   <div className="flex items-center justify-between">
                                     <span className="text-[10px] font-semibold text-slate-500">
-                                      Total
+                                      Total Active
                                     </span>
 
                                     <span className="text-[10px] font-bold text-slate-950">
@@ -983,7 +940,7 @@ function HRDashboard() {
                             {/* Bar */}
 
                             <div
-                              className="relative flex w-full max-w-[48px] flex-col justify-end overflow-hidden rounded-t-[9px] bg-slate-50 transition-all duration-300 group-hover:bg-slate-100"
+                              className="relative flex w-full max-w-[48px] flex-col justify-end overflow-hidden rounded-t-[9px] bg-slate-100/60 transition-all duration-300 group-hover:bg-slate-200/50 shadow-2xs"
                               style={{
                                 height:
                                   totalHeight >
@@ -995,7 +952,7 @@ function HRDashboard() {
                               {leaveHeight >
                                 0 && (
                                 <div
-                                  className="w-full bg-slate-200 transition-all duration-300 group-hover:bg-slate-300"
+                                  className="w-full bg-amber-300 transition-all duration-300 group-hover:bg-amber-400"
                                   style={{
                                     height: `${leaveHeight}%`,
                                   }}
@@ -1005,7 +962,7 @@ function HRDashboard() {
                               {absentHeight >
                                 0 && (
                                 <div
-                                  className="w-full bg-violet-200 transition-all duration-300 group-hover:bg-violet-300"
+                                  className="w-full bg-rose-500 transition-all duration-300 group-hover:bg-rose-600"
                                   style={{
                                     height: `${absentHeight}%`,
                                   }}
@@ -1015,7 +972,7 @@ function HRDashboard() {
                               {presentHeight >
                                 0 && (
                                 <div
-                                  className="w-full rounded-t-[9px] bg-violet-600 transition-all duration-300 group-hover:bg-violet-700"
+                                  className="w-full rounded-t-[9px] bg-emerald-500 transition-all duration-300 group-hover:bg-emerald-600"
                                   style={{
                                     height: `${presentHeight}%`,
                                   }}

@@ -1032,15 +1032,15 @@ export async function checkIn(req, res) {
       })
     }
 
+    const isLate = timing.status === 'LATE' || (timing.lateMinutes > 0)
     const status =
       timing.status === 'PRESENT'
         ? 'PRESENT'
-        : timing.status === 'LATE'
+        : isLate
         ? 'LATE'
         : 'ABSENT'
 
-    const lateMinutes =
-      timing.lateMinutes
+    const lateMinutes = timing.lateMinutes || 0
 
     const data = {
       id: crypto.randomUUID(),
@@ -1088,13 +1088,13 @@ export async function checkIn(req, res) {
           : 'NOT_CONFIGURED',
 
       reviewStatus:
-        status === 'ABSENT'
-          ? 'PENDING'
+        isLate || status === 'ABSENT'
+          ? 'Pending'
           : existing?.reviewStatus ||
-            'NONE',
+            'None',
 
       reviewRemarks:
-        status === 'ABSENT'
+        isLate || status === 'ABSENT'
           ? `Late check-in after ${formatTimeDisplay(configuration.requiredCheckInTime || '08:30')}. ${lateMinutes} minute(s) late.`
           : existing?.reviewRemarks ||
             null,
@@ -1345,8 +1345,11 @@ export async function checkOut(req, res) {
             checkoutTiming.overtimeMinutes,
 
           status:
-            attendance.status ||
-            'PRESENT',
+            (attendance.reviewStatus === 'Approved' ||
+             attendance.reviewStatus === 'Accepted' ||
+             String(attendance.reviewStatus || '').toUpperCase() === 'APPROVED')
+              ? 'PRESENT'
+              : (attendance.status || 'PRESENT'),
         },
       })
 

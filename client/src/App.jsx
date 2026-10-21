@@ -101,6 +101,24 @@ function AnimatedSearchPlaceholders() {
   return null
 }
 
+function LoginRedirect() {
+  const user = getStoredUser()
+  const role = normalizeRole(user?.role)
+  if (role === 'EMPLOYEE') {
+    return <Navigate to="/employee/login" replace />
+  }
+  return <Navigate to="/hr-manager/login" replace />
+}
+
+function RootRedirect() {
+  const user = getStoredUser()
+  const role = normalizeRole(user?.role)
+  if (role === 'EMPLOYEE') {
+    return <Navigate to="/employer/dashboard" replace />
+  }
+  return <Navigate to="/hr-manager" replace />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -140,15 +158,10 @@ export default function App() {
           element={<VerifyEmail />}
         />
 
-        {/* KEEP OLD LOGIN URL WORKING */}
+        {/* LOGIN URL REDIRECT (Smart based on role/portal) */}
         <Route
           path="/login"
-          element={
-            <Navigate
-              to="/hr-manager/login"
-              replace
-            />
-          }
+          element={<LoginRedirect />}
         />
 
         {/* HR MANAGER / HR DASHBOARD */}
@@ -176,27 +189,28 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* MAIN ROUTE → HR DASHBOARD */}
         <Route
-          path="/"
+          path="/employee/*"
           element={
-            <Navigate
-              to="/hr-manager"
-              replace
-            />
+            <ProtectedRoute
+              allowedRole="EMPLOYEE"
+              loginPath="/employee/login"
+            >
+              <EmployerApp />
+            </ProtectedRoute>
           }
         />
 
-        {/* UNKNOWN ROUTES → HR DASHBOARD */}
+        {/* MAIN ROUTE */}
+        <Route
+          path="/"
+          element={<RootRedirect />}
+        />
+
+        {/* UNKNOWN ROUTES */}
         <Route
           path="*"
-          element={
-            <Navigate
-              to="/hr-manager"
-              replace
-            />
-          }
+          element={<RootRedirect />}
         />
 
       </Routes>

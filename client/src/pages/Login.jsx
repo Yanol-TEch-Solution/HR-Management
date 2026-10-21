@@ -613,9 +613,26 @@ export default function Login({ onLogin, onRegister, onForgotPassword }) {
             <p>Sign in to your HR and Payroll management system</p>
           </div>
 
-          <div className="ref-role-badge">
-            <ShieldCheck size={15} />
-            <span>{roleLabel}</span>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "14px" }}>
+            <div className="ref-role-badge" style={{ margin: 0 }}>
+              <ShieldCheck size={15} />
+              <span>{roleLabel}</span>
+            </div>
+            <a
+              href={isHRPortal ? "/employee/login" : "/hr-manager/login"}
+              style={{
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "#007A99",
+                background: "rgba(0,146,184,0.08)",
+                padding: "4px 10px",
+                borderRadius: "8px",
+                textDecoration: "none",
+                transition: "all 0.2s ease",
+              }}
+            >
+              {isHRPortal ? "Employee Login →" : "HR Admin Login →"}
+            </a>
           </div>
 
           {error && <div className="ref-login-error">{error}</div>}

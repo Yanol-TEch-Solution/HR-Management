@@ -33,6 +33,10 @@ export async function logout() {
 }
 
 export function redirectToLogin() {
+  const user = getUser()
+  const role = String(user?.role || '').toUpperCase()
+  const isHr = (typeof window !== 'undefined' && window.location.pathname.startsWith('/hr-manager')) ||
+    role === 'HR_MANAGER' || role === 'ADMIN' || role === 'HR_ADMIN'
   localStorage.removeItem('user')
-  window.location.href = '/login'
+  window.location.href = isHr ? '/hr-manager/login' : '/employee/login'
 }

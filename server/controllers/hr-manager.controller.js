@@ -202,10 +202,29 @@ export async function deleteEmployee(req, res) {
     const employee = await prisma.employee.findUnique({ where: { id: req.params.id } })
     if (!employee) return res.status(404).json({ message: 'Employee not found' })
 
+    const isPermanent = req.query.permanent === 'true' || employee.isArchived || employee.status === 'Terminated' || employee.status === 'Archived'
+
+    if (isPermanent) {
+      // Permanently remove employee and associated records from database
+      await prisma.$transaction(async (tx) => {
+        await tx.attendance.deleteMany({ where: { employeeId: employee.id } })
+        await tx.leaveRequest.deleteMany({ where: { employeeId: employee.id } })
+        await tx.payrollRecord.deleteMany({ where: { employeeId: employee.id } })
+        await tx.user.deleteMany({ where: { employeeId: employee.id } })
+        await tx.employee.delete({ where: { id: employee.id } })
+      })
+
+      return res.json({
+        message: 'Employee permanently removed from database.',
+        deleted: true,
+        permanent: true,
+        employeeId: employee.id,
+      })
+    }
+
     const terminatedAt = new Date()
 
-    // Soft-delete / Archive the employee: do not permanently delete.
-    // Sets status to 'Terminated', isArchived to true, and preserves all historical records.
+    // Soft-delete / Archive the employee:
     await prisma.$transaction(async (tx) => {
       await tx.employee.update({
         where: { id: employee.id },
@@ -224,14 +243,14 @@ export async function deleteEmployee(req, res) {
     })
 
     return res.json({
-      message: 'Employee terminated and archived successfully. All historical records have been preserved.',
+      message: 'Employee terminated and archived successfully.',
       archived: true,
       employeeId: employee.id,
       status: 'Terminated',
       isArchived: true,
       terminatedAt: terminatedAt.toISOString(),
     })
-  } catch (error) { return fail(res, error, 'Failed to terminate employee') }
+  } catch (error) { return fail(res, error, 'Failed to terminate/delete employee') }
 }
 
 export async function restoreEmployee(req, res) {
@@ -404,16 +423,36 @@ export async function acceptLateAttendance(req, res) {
     const updated = await prisma.attendance.update({
       where: { id: current.id },
       data: {
-        status: 'Present',
+        status: current.checkOut ? 'Present' : (current.status || 'Late'),
         reviewStatus: 'Approved',
-        reviewedBy: req.user?.name || 'HR Manager',
+        reviewedBy: req.user?.name || req.user?.email || 'HR Manager',
         reviewedAt: new Date().toISOString(),
-        reviewRemarks: req.body?.remarks || null,
+        reviewRemarks: req.body?.remarks || req.body?.reviewRemarks || 'Late attendance accepted by HR.',
       },
     })
     return res.json(updated)
   } catch (error) {
     return fail(res, error, 'Failed to approve late attendance')
+  }
+}
+
+export async function rejectLateAttendance(req, res) {
+  try {
+    const current = await prisma.attendance.findUnique({ where: { id: req.params.id } })
+    if (!current) return res.status(404).json({ message: 'Attendance record not found' })
+    const updated = await prisma.attendance.update({
+      where: { id: current.id },
+      data: {
+        status: 'Absent',
+        reviewStatus: 'Rejected',
+        reviewedBy: req.user?.name || req.user?.email || 'HR Manager',
+        reviewedAt: new Date().toISOString(),
+        reviewRemarks: req.body?.remarks || req.body?.reviewRemarks || 'Late attendance rejected by HR.',
+      },
+    })
+    return res.json(updated)
+  } catch (error) {
+    return fail(res, error, 'Failed to reject late attendance')
   }
 }
 

@@ -362,6 +362,13 @@ export default function PunchCard() {
   }
 
   async function handleCheckOut() {
+    if (!canCheckOut) {
+      broadcastPunchFeedback({
+        tone: 'err',
+        text: `Check-out is only available at ${config.checkOutStartTime || '17:30'} (${getWorkEndDisplay(config)}).`,
+      })
+      return
+    }
     setBusy(true)
     try {
       const coords = await getPunchLocation()
@@ -524,11 +531,30 @@ export default function PunchCard() {
               <button
                 type="button"
                 onClick={handleCheckOut}
-                disabled={busy}
-                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition-all cursor-pointer"
+                disabled={!canCheckOut || busy}
+                title={
+                  canCheckOut
+                    ? `Check out now (${getWorkEndDisplay(config)})`
+                    : `Check-out available at ${config.checkOutStartTime || '17:30'} (${getWorkEndDisplay(config)})`
+                }
+                className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold shadow-xs transition-all ${
+                  canCheckOut && !busy
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer'
+                    : 'bg-slate-100 text-slate-400 dark:bg-[#1c2026] dark:text-slate-500 cursor-not-allowed border border-slate-200 dark:border-[#33383f]'
+                }`}
               >
-                {busy ? <Loader2 size={16} className="animate-spin" /> : <LogOut size={16} />}
-                <span>Check Out Now</span>
+                {busy ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : canCheckOut ? (
+                  <LogOut size={16} />
+                ) : (
+                  <Lock size={16} />
+                )}
+                <span>
+                  {canCheckOut
+                    ? 'Check Out Now'
+                    : `Check Out at ${config.checkOutStartTime || '17:30'}`}
+                </span>
               </button>
             ) : checkedOut ? (
               <div className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3.5 py-2 text-xs font-bold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-900/60">
