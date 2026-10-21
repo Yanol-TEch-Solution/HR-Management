@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getSocket } from '../../lib/socket'
+import { authHeaders } from '../../lib/hrApi'
 
 import {
   ArrowUpRight,
@@ -220,12 +221,21 @@ function HRDashboard() {
 
         const [employeesResponse, attendanceResponse, leaveResponse] =
           await Promise.allSettled([
-            fetch(`${API_URL}/employees`, { cache: 'no-store' }),
+            fetch(`${API_URL}/employees`, {
+              headers: authHeaders(),
+              cache: 'no-store',
+            }),
             fetch(
               `${API_URL}/attendance?startDate=${formatDate(startDate)}&endDate=${formatDate(today)}`,
-              { cache: 'no-store' },
+              {
+                headers: authHeaders(),
+                cache: 'no-store',
+              },
             ),
-            fetch(`${API_URL}/leave`, { cache: 'no-store' }),
+            fetch(`${API_URL}/leave`, {
+              headers: authHeaders(),
+              cache: 'no-store',
+            }),
           ])
 
         if (!cancelled && employeesResponse.status === 'fulfilled' && employeesResponse.value.ok) {
@@ -354,37 +364,60 @@ function HRDashboard() {
       let absent = 0
       let leave = 0
 
-      // Connect every active employee to attendance table records
+      const accountedRecordIds = new Set()
+
+      // Match against active roster employees first
       activeRosterEmployees.forEach((employee) => {
-        const employeeKeys = [employee?.id, employee?.employeeId].filter(Boolean)
+        const employeeKeys = [
+          employee?.id,
+          employee?.employeeId,
+          String(employee?.id),
+          String(employee?.employeeId),
+        ].filter(Boolean)
+
         const record = attendanceRecords.find(
-          (r) => String(r.date || '').slice(0, 10) === dateString && employeeKeys.includes(r.employeeId)
+          (r) =>
+            String(r.date || '').slice(0, 10) === dateString &&
+            employeeKeys.includes(String(r.employeeId))
         )
 
         if (record) {
+          accountedRecordIds.add(record.id)
           const rev = String(record.reviewStatus || '').toUpperCase()
-          const isApproved = record.reviewStatus === 'Approved' || record.reviewStatus === 'Accepted' || rev === 'APPROVED'
-          const isRejected = record.reviewStatus === 'Rejected' || rev === 'REJECTED'
-          const status = String(record.status || record.attendanceStatus || record.attendance_status || '').trim().toUpperCase()
+          const isApproved =
+            record.reviewStatus === 'Approved' ||
+            record.reviewStatus === 'Accepted' ||
+            rev === 'APPROVED' ||
+            rev === 'ACCEPTED'
+          const isRejected =
+            record.reviewStatus === 'Rejected' || rev === 'REJECTED'
+          const status = String(
+            record.status ||
+              record.attendanceStatus ||
+              record.attendance_status ||
+              ''
+          )
+            .trim()
+            .toUpperCase()
 
           if (isRejected || status === 'ABSENT' || status === 'A') {
             absent += 1
-          } else if (['SL', 'AL', 'ML', 'OL', 'LEAVE', 'ON LEAVE', 'ON_LEAVE'].includes(status)) {
+          } else if (
+            ['SL', 'AL', 'ML', 'OL', 'LEAVE', 'ON LEAVE', 'ON_LEAVE'].includes(
+              status
+            )
+          ) {
             leave += 1
-          } else if (status === 'PRESENT') {
+          } else if (
+            status === 'PRESENT' ||
+            status === 'CHECKED_IN' ||
+            status === 'CHECKED IN' ||
+            isApproved
+          ) {
             present += 1
-          } else if (isApproved) {
-            // Late check-in accepted by HR
-            if (record.checkOut || dateString === todayDateString) {
-              present += 1
-            } else {
-              present += 1
-            }
           } else if (status === 'LATE' || status === 'PENDING_REVIEW') {
-            // Unapproved late check-in shows as absent until HR accepts
+            // Pending late check-in counts as absent in table until approved
             absent += 1
-          } else if (status === 'CHECKED_IN' || status === 'CHECKED IN') {
-            present += 1
           } else {
             absent += 1
           }
@@ -392,25 +425,79 @@ function HRDashboard() {
           // No record for this employee: check if on approved leave
           const isOnLeave = leaveRequests.some((req) => {
             if (req.approvalStatus !== 'Approved') return false
-            const matchesEmp = employeeKeys.includes(req.employeeId)
+            const matchesEmp = employeeKeys.includes(String(req.employeeId))
             const start = String(req.startDate || '').slice(0, 10)
             const end = String(req.endDate || '').slice(0, 10)
-            return matchesEmp && start && end && start <= dateString && dateString <= end
+            return (
+              matchesEmp &&
+              start &&
+              end &&
+              start <= dateString &&
+              dateString <= end
+            )
           })
 
           if (isOnLeave) {
             leave += 1
           } else if (!isWeekend && isTodayOrPast) {
-            // Working day with no check-in -> Absent in attendance table
+            // Working day with no check-in in attendance table -> Absent
             absent += 1
           }
         }
       })
 
+      // Also count any additional attendance table record for this date
+      attendanceRecords
+        .filter(
+          (r) =>
+            String(r.date || '').slice(0, 10) === dateString &&
+            !accountedRecordIds.has(r.id)
+        )
+        .forEach((record) => {
+          const rev = String(record.reviewStatus || '').toUpperCase()
+          const isApproved =
+            record.reviewStatus === 'Approved' ||
+            record.reviewStatus === 'Accepted' ||
+            rev === 'APPROVED' ||
+            rev === 'ACCEPTED'
+          const isRejected =
+            record.reviewStatus === 'Rejected' || rev === 'REJECTED'
+          const status = String(
+            record.status ||
+              record.attendanceStatus ||
+              record.attendance_status ||
+              ''
+          )
+            .trim()
+            .toUpperCase()
+
+          if (isRejected || status === 'ABSENT' || status === 'A') {
+            absent += 1
+          } else if (
+            ['SL', 'AL', 'ML', 'OL', 'LEAVE', 'ON LEAVE', 'ON_LEAVE'].includes(
+              status
+            )
+          ) {
+            leave += 1
+          } else if (
+            status === 'PRESENT' ||
+            status === 'CHECKED_IN' ||
+            status === 'CHECKED IN' ||
+            isApproved
+          ) {
+            present += 1
+          } else {
+            absent += 1
+          }
+        })
+
       return {
         date: dateString,
         day: date.toLocaleDateString('en-US', { weekday: 'short' }),
-        dateLabel: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        dateLabel: date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        }),
         present,
         absent,
         leave,
@@ -428,8 +515,8 @@ function HRDashboard() {
   const attendanceChartMax = useMemo(() => {
     const maximum = Math.max(
       totalEmployees,
-      ...attendanceChartData.map((day) => day.total),
-      0
+      ...attendanceChartData.map((day) => Math.max(day.present, day.absent, day.leave, day.total)),
+      1
     )
 
     if (maximum <= 5) return 5
@@ -827,174 +914,138 @@ function HRDashboard() {
                 {/* Bars */}
 
                 <div className="absolute inset-0 flex items-end pl-9 pr-2 pb-12">
-                  <div className="flex h-full w-full items-end justify-around gap-3">
-                    {attendanceChartData.map(
-                      (day) => {
-                        const total =
-                          day.total
+                  <div className="flex h-full w-full items-end justify-around gap-2 sm:gap-3">
+                    {attendanceChartData.map((day) => {
+                      const presentHeight =
+                        attendanceChartMax > 0
+                          ? Math.min((day.present / attendanceChartMax) * 100, 100)
+                          : 0
 
-                        const totalHeight =
-                          attendanceChartMax >
-                          0
-                            ? Math.min(
-                                (total /
-                                  attendanceChartMax) *
-                                  100,
-                                100
-                              )
-                            : 0
+                      const absentHeight =
+                        attendanceChartMax > 0
+                          ? Math.min((day.absent / attendanceChartMax) * 100, 100)
+                          : 0
 
-                        const presentHeight =
-                          total > 0
-                            ? (day.present /
-                                total) *
-                              100
-                            : 0
+                      const leaveHeight =
+                        attendanceChartMax > 0
+                          ? Math.min((day.leave / attendanceChartMax) * 100, 100)
+                          : 0
 
-                        const absentHeight =
-                          total > 0
-                            ? (day.absent /
-                                total) *
-                              100
-                            : 0
+                      return (
+                        <div
+                          key={day.date}
+                          className="group relative flex h-full flex-1 flex-col items-center justify-end"
+                        >
+                          {/* Tooltip */}
+                          <div className="pointer-events-none absolute bottom-[calc(100%-10px)] left-1/2 z-30 hidden w-40 -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-3 shadow-xl group-hover:block">
+                            <p className="text-xs font-bold text-slate-900">
+                              {day.dateLabel}
+                            </p>
 
-                        const leaveHeight =
-                          total > 0
-                            ? (day.leave /
-                                total) *
-                              100
-                            : 0
+                            <div className="mt-2 space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-600">
+                                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                  Present
+                                </span>
+                                <span className="text-[10px] font-bold text-emerald-700">
+                                  {day.present}
+                                </span>
+                              </div>
 
-                        return (
-                          <div
-                            key={
-                              day.date
-                            }
-                            className="group relative flex h-full flex-1 flex-col items-center justify-end"
-                          >
-                            {/* Tooltip */}
+                              <div className="flex items-center justify-between">
+                                <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-600">
+                                  <span className="h-2 w-2 rounded-full bg-rose-500" />
+                                  Absent
+                                </span>
+                                <span className="text-[10px] font-bold text-rose-600">
+                                  {day.absent}
+                                </span>
+                              </div>
 
-                            <div className="pointer-events-none absolute bottom-[calc(100%-10px)] left-1/2 z-30 hidden w-36 -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-3 shadow-xl group-hover:block">
-                              <p className="text-xs font-bold text-slate-900">
-                                {
-                                  day.dateLabel
-                                }
-                              </p>
-
-                              <div className="mt-2 space-y-1.5">
-                                <div className="flex items-center justify-between">
-                                  <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-600">
-                                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                                    Present
-                                  </span>
-
-                                  <span className="text-[10px] font-bold text-emerald-700">
-                                    {
-                                      day.present
-                                    }
-                                  </span>
-                                </div>
-
-                                <div className="flex items-center justify-between">
-                                  <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-600">
-                                    <span className="h-2 w-2 rounded-full bg-rose-500" />
-                                    Absent
-                                  </span>
-
-                                  <span className="text-[10px] font-bold text-rose-600">
-                                    {
-                                      day.absent
-                                    }
-                                  </span>
-                                </div>
-
+                              {day.leave > 0 && (
                                 <div className="flex items-center justify-between">
                                   <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-600">
                                     <span className="h-2 w-2 rounded-full bg-amber-400" />
                                     Leave
                                   </span>
-
                                   <span className="text-[10px] font-bold text-amber-700">
-                                    {
-                                      day.leave
-                                    }
+                                    {day.leave}
                                   </span>
                                 </div>
+                              )}
 
-                                <div className="mt-2 border-t border-slate-100 pt-1.5">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-semibold text-slate-500">
-                                      Total Active
-                                    </span>
-
-                                    <span className="text-[10px] font-bold text-slate-950">
-                                      {
-                                        day.total
-                                      }
-                                    </span>
-                                  </div>
-                                </div>
+                              <div className="mt-2 border-t border-slate-100 pt-1.5 flex items-center justify-between">
+                                <span className="text-[10px] font-semibold text-slate-500">
+                                  Total Active
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-950">
+                                  {totalEmployees || day.total}
+                                </span>
                               </div>
                             </div>
+                          </div>
 
-                            {/* Bar */}
+                          {/* Side-by-side Bars */}
+                          <div className="flex h-full w-full items-end justify-center gap-1 sm:gap-1.5 px-0.5 sm:px-1">
+                            {/* Present Bar (Emerald) */}
+                            <div className="flex h-full flex-1 max-w-[20px] flex-col items-center justify-end">
+                              {day.present > 0 && (
+                                <span className="mb-1 text-[9px] font-bold text-emerald-600 tabular-nums">
+                                  {day.present}
+                                </span>
+                              )}
+                              <div
+                                className="w-full rounded-t-md bg-emerald-500 transition-all duration-300 group-hover:bg-emerald-600 shadow-2xs"
+                                style={{
+                                  height: presentHeight > 0 ? `${presentHeight}%` : '2px',
+                                  opacity: presentHeight > 0 ? 1 : 0.25,
+                                }}
+                              />
+                            </div>
 
-                            <div
-                              className="relative flex w-full max-w-[48px] flex-col justify-end overflow-hidden rounded-t-[9px] bg-slate-100/60 transition-all duration-300 group-hover:bg-slate-200/50 shadow-2xs"
-                              style={{
-                                height:
-                                  totalHeight >
-                                  0
-                                    ? `${totalHeight}%`
-                                    : '3px',
-                              }}
-                            >
-                              {leaveHeight >
-                                0 && (
+                            {/* Absent Bar (Rose) */}
+                            <div className="flex h-full flex-1 max-w-[20px] flex-col items-center justify-end">
+                              {day.absent > 0 && (
+                                <span className="mb-1 text-[9px] font-bold text-rose-600 tabular-nums">
+                                  {day.absent}
+                                </span>
+                              )}
+                              <div
+                                className="w-full rounded-t-md bg-rose-500 transition-all duration-300 group-hover:bg-rose-600 shadow-2xs"
+                                style={{
+                                  height: absentHeight > 0 ? `${absentHeight}%` : '2px',
+                                  opacity: absentHeight > 0 ? 1 : 0.25,
+                                }}
+                              />
+                            </div>
+
+                            {/* Leave Bar (Amber) */}
+                            {day.leave > 0 && (
+                              <div className="flex h-full flex-1 max-w-[20px] flex-col items-center justify-end">
+                                <span className="mb-1 text-[9px] font-bold text-amber-600 tabular-nums">
+                                  {day.leave}
+                                </span>
                                 <div
-                                  className="w-full bg-amber-300 transition-all duration-300 group-hover:bg-amber-400"
+                                  className="w-full rounded-t-md bg-amber-400 transition-all duration-300 group-hover:bg-amber-500 shadow-2xs"
                                   style={{
                                     height: `${leaveHeight}%`,
                                   }}
                                 />
-                              )}
-
-                              {absentHeight >
-                                0 && (
-                                <div
-                                  className="w-full bg-rose-500 transition-all duration-300 group-hover:bg-rose-600"
-                                  style={{
-                                    height: `${absentHeight}%`,
-                                  }}
-                                />
-                              )}
-
-                              {presentHeight >
-                                0 && (
-                                <div
-                                  className="w-full rounded-t-[9px] bg-emerald-500 transition-all duration-300 group-hover:bg-emerald-600"
-                                  style={{
-                                    height: `${presentHeight}%`,
-                                  }}
-                                />
-                              )}
-                            </div>
-
-                            {/* Day Label */}
-
-                            <span className="mt-3 text-[10px] font-semibold text-slate-400">
-                              {day.day}
-                            </span>
-
-                            <span className="mt-0.5 text-[9px] text-slate-300">
-                              {
-                                day.dateLabel
-                              }
-                            </span>
+                              </div>
+                            )}
                           </div>
-                        )
-                      }
-                    )}
+
+                          {/* Day Label */}
+                          <span className="mt-3 text-[10px] font-semibold text-slate-500">
+                            {day.day}
+                          </span>
+                          <span className="mt-0.5 text-[9px] text-slate-300">
+                            {day.dateLabel}
+                          </span>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
