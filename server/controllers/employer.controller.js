@@ -1960,13 +1960,14 @@ export async function getPayroll(
       })
     }
 
+    const where = {
+      employeeId: employee.id,
+      ...(req.query.paidOnly === 'true' ? { paymentStatus: 'Paid' } : {}),
+    }
+
     const records =
       await prisma.payrollRecord.findMany({
-        where: {
-          employeeId:
-            employee.id,
-        },
-
+        where,
         orderBy: {
           payrollMonth:
             'desc',

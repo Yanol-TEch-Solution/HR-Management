@@ -43,6 +43,7 @@ import {
   getPayrollRecord,
   createPayroll,
   updatePayroll,
+  disbursePayroll,
   deletePayroll,
 } from '../controllers/hr-manager.controller.js'
 
@@ -222,6 +223,7 @@ router.get('/payroll/:id', ...requirePermission('payroll.view'), getPayrollRecor
 router.post('/payroll', ...requirePermission('payroll.create'), createPayroll)
 
 router.put('/payroll/:id', ...requirePermission('payroll.edit'), updatePayroll)
+router.post('/payroll/disburse', ...requirePermission('payroll.edit'), disbursePayroll)
 
 router.delete('/payroll/:id', ...requirePermission('payroll.delete'), deletePayroll)
 

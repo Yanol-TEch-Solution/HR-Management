@@ -501,13 +501,69 @@ export async function createPayroll(req, res) {
     const data = req.body || {}, employee = await employeeById(data.employeeId)
     if (!employee || !data.payrollMonth) return res.status(400).json({ message: 'Employee and payroll month are required' })
     if (await prisma.payrollRecord.findFirst({ where: { employeeId: employee.id, payrollMonth: data.payrollMonth } })) return res.status(409).json({ message: 'Payroll record already exists for this employee and month' })
-    return res.status(201).json(await prisma.payrollRecord.create({ data: { id: data.id || crypto.randomUUID(), employeeId: employee.id, employeeName: employee.name, department: employee.department, payrollMonth: data.payrollMonth, ...payrollValues(data, { basicSalary: employee.basicSalary }) } }))
+    const paymentStatus = data.paymentStatus || 'Draft'
+    const paidAt = paymentStatus === 'Paid' ? (data.paidAt ? new Date(data.paidAt) : new Date()) : null
+    return res.status(201).json(await prisma.payrollRecord.create({
+      data: {
+        id: data.id || crypto.randomUUID(),
+        employeeId: employee.id,
+        employeeName: employee.name,
+        department: employee.department,
+        payrollMonth: data.payrollMonth,
+        paymentStatus,
+        paidAt,
+        ...payrollValues(data, { basicSalary: employee.basicSalary }),
+      },
+    }))
   } catch (error) { return fail(res, error, 'Failed to create payroll record') }
 }
+
 export async function updatePayroll(req, res) {
-  try { const current = await prisma.payrollRecord.findUnique({ where: { id: req.params.id } }); if (!current) return res.status(404).json({ message: 'Payroll record not found' }); return res.json(await prisma.payrollRecord.update({ where: { id: current.id }, data: { payrollMonth: req.body?.payrollMonth ?? current.payrollMonth, ...payrollValues(req.body || {}, current) } })) }
-  catch (error) { return fail(res, error, 'Failed to update payroll record') }
+  try {
+    const current = await prisma.payrollRecord.findUnique({ where: { id: req.params.id } })
+    if (!current) return res.status(404).json({ message: 'Payroll record not found' })
+    const paymentStatus = req.body?.paymentStatus !== undefined ? req.body.paymentStatus : current.paymentStatus
+    let paidAt = current.paidAt
+    if (paymentStatus === 'Paid' && !paidAt) paidAt = new Date()
+    else if (paymentStatus === 'Draft') paidAt = null
+    return res.json(await prisma.payrollRecord.update({
+      where: { id: current.id },
+      data: {
+        payrollMonth: req.body?.payrollMonth ?? current.payrollMonth,
+        paymentStatus,
+        paidAt,
+        ...payrollValues(req.body || {}, current),
+      },
+    }))
+  } catch (error) { return fail(res, error, 'Failed to update payroll record') }
 }
+
+export async function disbursePayroll(req, res) {
+  try {
+    const { payrollMonth, status = 'Paid' } = req.body || {}
+    if (!payrollMonth) return res.status(400).json({ message: 'Payroll month is required' })
+    const paidAt = status === 'Paid' ? new Date() : null
+    const result = await prisma.payrollRecord.updateMany({
+      where: { payrollMonth },
+      data: {
+        paymentStatus: status,
+        paidAt,
+      },
+    })
+    return res.json({
+      message: status === 'Paid'
+        ? `Payroll for ${payrollMonth} has been paid and disbursed to employees.`
+        : `Payroll for ${payrollMonth} marked as ${status}.`,
+      count: result.count,
+      payrollMonth,
+      paymentStatus: status,
+      paidAt,
+    })
+  } catch (error) {
+    return fail(res, error, 'Failed to disburse payroll')
+  }
+}
+
 export async function deletePayroll(req, res) {
   try { const current = await prisma.payrollRecord.findUnique({ where: { id: req.params.id } }); if (!current) return res.status(404).json({ message: 'Payroll record not found' }); await prisma.payrollRecord.delete({ where: { id: current.id } }); return res.json({ message: 'Payroll record deleted successfully' }) }
   catch (error) { return fail(res, error, 'Failed to delete payroll record') }

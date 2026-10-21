@@ -4,12 +4,13 @@ import { SETTINGS } from '../data/settingsData'
 import LuxuryDataTable from '../components/LuxuryDataTable'
 import { resolveEmployee, getCurrentUser } from '../lib/currentUser'
 import { attendanceTotals } from '../lib/attendanceUtils'
-import { fetchEmployees, fetchAttendance } from '../lib/employerApi'
+import { fetchEmployees, fetchAttendance, fetchPayrollRecords } from '../lib/employerApi'
 import useRealtimeRefetch from '../hooks/useRealtimeRefetch'
 
 function Payroll() {
   const [employees, setEmployees] = useState([])
   const [attendance, setAttendance] = useState([])
+  const [payrollRecords, setPayrollRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const currentEmployeeId = resolveEmployee(employees, getCurrentUser()).employeeId
   const showAllEmployees = currentEmployeeId === '—'
@@ -20,9 +21,12 @@ function Payroll() {
 
   useEffect(() => {
     let cancelled = false
-    fetchEmployees()
-      .then((emps) => {
-        if (!cancelled) setEmployees(Array.isArray(emps) ? emps : [])
+    Promise.all([fetchEmployees(), fetchPayrollRecords()])
+      .then(([emps, payroll]) => {
+        if (!cancelled) {
+          setEmployees(Array.isArray(emps) ? emps : [])
+          setPayrollRecords(Array.isArray(payroll) ? payroll : [])
+        }
       })
       .catch(() => {})
       .finally(() => {
@@ -54,8 +58,23 @@ function Payroll() {
     fetchAttendance({ month, year })
       .then((att) => setAttendance(Array.isArray(att) ? att : (att?.attendance || [])))
       .catch(() => {})
+    fetchPayrollRecords()
+      .then((records) => setPayrollRecords(Array.isArray(records) ? records : []))
+      .catch(() => {})
   }, [month, year])
   useRealtimeRefetch(`${month}-${year}`, reloadAttendance)
+
+  const period = `${year}-${String(month).padStart(2, '0')}`
+
+  const officialPayrollByEmp = useMemo(() => {
+    const map = new Map()
+    payrollRecords.forEach((rec) => {
+      if (String(rec.payrollMonth || '') === period) {
+        map.set(String(rec.employeeId), rec)
+      }
+    })
+    return map
+  }, [payrollRecords, period])
 
   const filteredEmployees = useMemo(() => {
     if (showAllEmployees) return employees.filter((emp) => emp.employmentStatus !== 'Resigned' && emp.employmentStatus !== 'Terminated')
@@ -65,20 +84,30 @@ function Payroll() {
   const rows = useMemo(() => {
     const attTotals = attendanceTotals(attendance)
     return filteredEmployees.map((emp) => {
+      const official = officialPayrollByEmp.get(String(emp.id)) || officialPayrollByEmp.get(String(emp.employeeId))
       const base = calcPayroll(emp, attTotals[emp.id] || attTotals[emp.employeeId] || { totalOtHours: 0 })
       const ov = overrides[emp.employeeId]
-      const otherDeductions = ov?.otherDeductions ?? emp.otherDeductions ?? 0
-      const loanDeductions = ov?.loanDeductions ?? emp.loanDeductions ?? 0
-      const totalDeductions = base.incomeTax + base.pensionEmployee + otherDeductions + loanDeductions
+      const otherDeductions = official ? official.otherDeduction : (ov?.otherDeductions ?? emp.otherDeductions ?? 0)
+      const loanDeductions = official ? official.loanDeduction : (ov?.loanDeductions ?? emp.loanDeductions ?? 0)
+      const totalDeductions = official ? official.totalDeductions : (base.incomeTax + base.pensionEmployee + otherDeductions + loanDeductions)
+      const netSalary = official ? official.netSalary : roundMoney(base.gross - totalDeductions)
+
       return {
         ...base,
+        basicSalary: official ? official.basicSalary : base.basicSalary,
+        gross: official ? official.grossSalary : base.gross,
+        incomeTax: official ? official.incomeTax : base.incomeTax,
+        pensionEmployee: official ? official.pensionDeduction : base.pensionEmployee,
         otherDeductions,
         loanDeductions,
         totalDeductions,
-        netSalary: roundMoney(base.gross - totalDeductions),
+        netSalary,
+        hasOfficialRecord: Boolean(official),
+        paymentStatus: official?.paymentStatus || (official ? 'Draft' : 'Not Run'),
+        paidAt: official?.paidAt || null,
       }
     })
-  }, [filteredEmployees, attendance, overrides])
+  }, [filteredEmployees, attendance, overrides, officialPayrollByEmp])
 
   const totals = useMemo(() => {
     const active = rows.filter((r) => r.active)
@@ -243,6 +272,33 @@ function Payroll() {
               </span>
             ),
             exportValue: (r) => r.netSalary,
+          },
+          {
+            key: 'paymentStatus',
+            header: 'Status',
+            sortable: true,
+            render: (r) => {
+              if (String(r.paymentStatus).toLowerCase() === 'paid') {
+                return (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    Paid
+                  </span>
+                )
+              }
+              if (r.hasOfficialRecord) {
+                return (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300">
+                    Pending
+                  </span>
+                )
+              }
+              return (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-[#1c2026] dark:text-gray-400">
+                  Not Run
+                </span>
+              )
+            },
+            exportValue: (r) => r.paymentStatus || 'Not Run',
           },
         ]}
       />

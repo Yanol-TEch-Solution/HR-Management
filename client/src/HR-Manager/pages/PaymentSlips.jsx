@@ -111,6 +111,8 @@ function normalizePayroll(record, employee) {
     netSalary: Number(record.netSalary || 0),
     employerPension: Number(record.employerPension || 0),
     employerCost: Number(record.employerCost || 0),
+    paymentStatus: record.paymentStatus || record.payment_status || 'Draft',
+    paidAt: record.paidAt || record.paid_at || null,
   }
 }
 
@@ -171,7 +173,20 @@ function PayslipPreview({ payslip, attendance, attendanceLoading, attendanceErro
         <div className="space-y-7 p-4 sm:p-8 print:p-10">
           <div className="flex flex-col justify-between gap-5 border-b border-slate-200 pb-6 sm:flex-row sm:items-start">
             <div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-950 text-white"><Building2 size={24} /></div><div><h1 className="text-2xl font-bold text-slate-950">Yanol Tech</h1><p className="text-sm text-slate-500">Employee Payment Slip</p></div></div>
-            <div className="sm:text-right"><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Payroll Period</p><p className="mt-1 text-lg font-bold text-slate-950">{formatPeriod(payslip.payrollMonth)}</p><p className="mt-1 text-xs text-slate-500">Record #{payslip.id}</p></div>
+            <div className="sm:text-right">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Payroll Period</p>
+              <p className="mt-1 text-lg font-bold text-slate-950">{formatPeriod(payslip.payrollMonth)}</p>
+              <div className="mt-1 flex items-center justify-start sm:justify-end gap-1.5">
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  String(payslip.paymentStatus || '').toLowerCase() === 'paid'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                }`}>
+                  {String(payslip.paymentStatus || '').toLowerCase() === 'paid' ? 'PAID / DISBURSED' : 'PENDING DISBURSEMENT'}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">Record #{payslip.id}</p>
+            </div>
           </div>
 
           <section>
@@ -677,12 +692,13 @@ function PaymentSlips() {
                   <th className="px-4 py-3 text-right">Gross Salary</th>
                   <th className="px-4 py-3 text-right">Deductions</th>
                   <th className="px-4 py-3 text-right">Net Salary</th>
+                  <th className="px-4 py-3 text-center">Status</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
                 {loading ? (
-                  <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500"><span className="inline-flex items-center gap-2"><Loader2 size={16} className="animate-spin" />Loading saved slips…</span></td></tr>
+                  <tr><td colSpan={9} className="px-4 py-12 text-center text-slate-500"><span className="inline-flex items-center gap-2"><Loader2 size={16} className="animate-spin" />Loading saved slips…</span></td></tr>
                 ) : filteredPayslips.length ? filteredPayslips.map((payslip) => (
                   <tr key={payslip.id} className={`hover:bg-slate-50/80 ${selected.has(payslip.id) ? 'bg-cyan-50/50' : ''}`}>
                     <td className="px-4 py-3.5">
@@ -700,6 +716,17 @@ function PaymentSlips() {
                     <td className="px-4 py-3.5 text-right tabular-nums">{formatCurrency(payslip.grossSalary)}</td>
                     <td className="px-4 py-3.5 text-right tabular-nums text-rose-700">{formatCurrency(payslip.totalDeductions)}</td>
                     <td className="px-4 py-3.5 text-right font-bold tabular-nums text-emerald-700">{formatCurrency(payslip.netSalary)}</td>
+                    <td className="px-4 py-3.5 text-center">
+                      {String(payslip.paymentStatus || '').toLowerCase() === 'paid' ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-600/20">
+                          Paid
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-700 ring-1 ring-amber-600/20">
+                          Draft
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3.5">
                       <div className="flex justify-end gap-2">
                         <button type="button" onClick={() => viewSlip(payslip)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#0092B8] px-3 py-2 text-xs font-bold text-white hover:bg-[#007a99]"><FileText size={14} />View</button>
@@ -709,7 +736,7 @@ function PaymentSlips() {
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center">
+                    <td colSpan={9} className="px-4 py-12 text-center">
                       <FileText className="mx-auto h-9 w-9 text-slate-300" />
                       <p className="mt-3 text-sm font-semibold text-slate-800">
                         {scopedSlips.length ? 'No payment slips match these filters' : 'No saved payment slips yet'}

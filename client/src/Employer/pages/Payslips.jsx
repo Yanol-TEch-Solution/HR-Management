@@ -81,7 +81,9 @@ export default function Payslips() {
     return payrollRecords
       .filter((record) => {
         const period = String(record.payrollMonth || '')
-        return period === `${year}-${String(month).padStart(2, '0')}`
+        const matchMonth = period === `${year}-${String(month).padStart(2, '0')}`
+        const isPaid = String(record.paymentStatus || '').toLowerCase() === 'paid'
+        return matchMonth && isPaid
       })
       .map((record) => {
         const emp = employeeById.get(String(record.employeeId)) || {}
@@ -118,6 +120,17 @@ export default function Payslips() {
         }
       })
   }, [employees, payrollRecords, month, year])
+
+  // Detect whether payroll has been drafted for this month but not yet paid
+  const unpaidPayrollRecord = useMemo(() => {
+    return payrollRecords.find((record) => {
+      const period = String(record.payrollMonth || '')
+      const matchMonth = period === `${year}-${String(month).padStart(2, '0')}`
+      const isPaid = String(record.paymentStatus || '').toLowerCase() === 'paid'
+      const isForMe = !me?.employeeId || String(record.employeeId) === String(me.employeeId) || String(record.employeeId) === String(me.id)
+      return matchMonth && !isPaid && isForMe
+    })
+  }, [payrollRecords, month, year, me])
 
   // This page is employee-self-service: only the currently logged-in employee's
   // real payroll records are allowed to appear here.
@@ -308,9 +321,27 @@ export default function Payslips() {
 
       {filteredSlips.length === 0 && (
         <div className="bg-white dark:bg-[#15181d] border border-gray-200 dark:border-[#262b31] rounded-2xl shadow-2xs p-8 text-center">
-          <FileText className="mx-auto text-gray-300" size={34} />
-          <h3 className="mt-3 text-sm font-bold text-gray-900 dark:text-gray-100">No payroll slip recorded</h3>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">There is no payroll record for {periodLabel}. A slip will appear here after payroll is created for this employee and month.</p>
+          {unpaidPayrollRecord ? (
+            <>
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400 mb-2">
+                <FileText size={26} />
+              </div>
+              <h3 className="mt-2 text-base font-bold text-gray-900 dark:text-gray-100">
+                Payroll Pending Disbursement
+              </h3>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                Your payroll for {periodLabel} has been prepared and is awaiting payment disbursement by HR Admin. Your official payment slip will be automatically unlocked here once payment is disbursed.
+              </p>
+            </>
+          ) : (
+            <>
+              <FileText className="mx-auto text-gray-300 dark:text-gray-600" size={34} />
+              <h3 className="mt-3 text-sm font-bold text-gray-900 dark:text-gray-100">No payment slip available</h3>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                There is no disbursed payroll slip for {periodLabel}. Your official payment slip will automatically appear here once HR Admin processes and pays that month&apos;s payroll.
+              </p>
+            </>
+          )}
         </div>
       )}
 

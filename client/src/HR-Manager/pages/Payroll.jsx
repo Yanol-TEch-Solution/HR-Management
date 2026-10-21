@@ -3,6 +3,7 @@ import {
   Banknote,
   Building2,
   Calculator,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   CircleDollarSign,
@@ -11,6 +12,7 @@ import {
   Loader2,
   MoreHorizontal,
   MinusCircle,
+  RotateCcw,
   Save,
   Trash2,
   Wallet,
@@ -373,6 +375,16 @@ function normalizePayroll(record) {
         record.employer_cost ??
         0,
     ),
+
+    paymentStatus:
+      record.paymentStatus ||
+      record.payment_status ||
+      'Draft',
+
+    paidAt:
+      record.paidAt ||
+      record.paid_at ||
+      null,
   }
 }
 
@@ -1312,6 +1324,9 @@ export default function Payroll() {
   const [generating, setGenerating] =
     useState(false)
 
+  const [disbursing, setDisbursing] =
+    useState(false)
+
   const [
     deletingId,
     setDeletingId,
@@ -2019,6 +2034,84 @@ export default function Payroll() {
     }
   }
 
+  const paidCount = useMemo(() => {
+    return payroll.filter(
+      (item) => String(item.paymentStatus || '').toLowerCase() === 'paid',
+    ).length
+  }, [payroll])
+
+  const unpaidCount = payroll.length - paidCount
+  const isMonthFullyPaid = payroll.length > 0 && paidCount === payroll.length
+
+  async function handleDisbursePayroll(targetStatus = 'Paid') {
+    if (!payrollMonth) {
+      setPayrollError('Please select a payroll month.')
+      return
+    }
+    if (!payroll.length) {
+      setPayrollError('No payroll records exist for this month to disburse.')
+      return
+    }
+
+    try {
+      setDisbursing(true)
+      setPayrollError('')
+
+      const response = await fetch(`${API_BASE}/payroll/disburse`, {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          payrollMonth,
+          status: targetStatus,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data?.error || data?.message || 'Failed to disburse payroll.')
+      }
+
+      setNotice(
+        targetStatus === 'Paid'
+          ? `Payroll for ${payrollMonth} disbursed successfully! Payment slips are now unlocked and visible to employees.`
+          : `Payroll for ${payrollMonth} set to ${targetStatus}.`,
+      )
+      await loadSavedPayroll()
+    } catch (err) {
+      console.error('Disburse payroll error:', err)
+      setPayrollError(err.message || 'Unable to disburse payroll.')
+    } finally {
+      setDisbursing(false)
+    }
+  }
+
+  async function handleToggleSinglePaymentStatus(record) {
+    try {
+      setPayrollError('')
+      const isPaid = String(record.paymentStatus || '').toLowerCase() === 'paid'
+      const nextStatus = isPaid ? 'Draft' : 'Paid'
+
+      const response = await fetch(`${API_BASE}/payroll/${record.id}`, {
+        method: 'PUT',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          paymentStatus: nextStatus,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data?.error || data?.message || 'Failed to update payment status.')
+      }
+
+      setNotice(`Updated payment status for ${record.employeeName || 'employee'} to ${nextStatus}.`)
+      await loadSavedPayroll()
+    } catch (err) {
+      console.error('Update status error:', err)
+      setPayrollError(err.message || 'Unable to update payment status.')
+    }
+  }
+
   function moveMonth(offset) {
     const [
       year,
@@ -2091,21 +2184,39 @@ export default function Payroll() {
           title="Manage Employee Payroll"
           description="Manage monthly salary calculations, deductions, net pay and employer cost."
           action={
-            canCreate ? (
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                onClick={generateAllPayroll}
-                disabled={generating || payrollLoading || loading}
-                icon={Calculator}
-                loading={generating}
-                loadingText="Generating..."
-                size="lg"
-              >
-                Generate Payroll
-              </Button>
+              {canCreate && (
+                <Button
+                  type="button"
+                  onClick={generateAllPayroll}
+                  disabled={generating || disbursing || payrollLoading || loading}
+                  icon={Calculator}
+                  loading={generating}
+                  loadingText="Generating..."
+                  size="lg"
+                >
+                  Generate Payroll
+                </Button>
+              )}
+              {canEditPayroll && payroll.length > 0 && (
+                <Button
+                  type="button"
+                  onClick={() => handleDisbursePayroll(isMonthFullyPaid ? 'Draft' : 'Paid')}
+                  disabled={disbursing || generating || payrollLoading || loading}
+                  icon={isMonthFullyPaid ? RotateCcw : Wallet}
+                  loading={disbursing}
+                  loadingText={isMonthFullyPaid ? 'Reverting...' : 'Disbursing...'}
+                  size="lg"
+                  className={
+                    isMonthFullyPaid
+                      ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+                  }
+                >
+                  {isMonthFullyPaid ? 'Revert to Draft' : `Pay & Disburse (${unpaidCount || payroll.length})`}
+                </Button>
+              )}
             </div>
-            ) : null
           }
           className="animate-employee-hero mb-8 px-0 py-2"
         />
@@ -2428,9 +2539,16 @@ export default function Payroll() {
                           </Table.Cell>
 
                           <Table.Cell className="px-4 py-4">
-                            <span className="inline-flex text-xs font-semibold text-emerald-700">
-                              Saved
-                            </span>
+                            {String(row.paymentStatus || '').toLowerCase() === 'paid' ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-600/20">
+                                <CheckCircle2 size={12} />
+                                Paid
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-600/20">
+                                Draft
+                              </span>
+                            )}
                           </Table.Cell>
 
                           <Table.Cell className="px-4 py-4">
@@ -2439,6 +2557,28 @@ export default function Payroll() {
                               onOpenChange={(open) => setActionMenuId(open ? row.id : null)}
                               triggerLabel={`Actions for payroll record ${row.employeeId || ''}`}
                             >
+                              {canEditPayroll && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActionMenuId(null)
+                                    handleToggleSinglePaymentStatus(row)
+                                  }}
+                                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                  {String(row.paymentStatus || '').toLowerCase() === 'paid' ? (
+                                    <>
+                                      <RotateCcw size={14} className="text-amber-500" />
+                                      <span>Mark as Draft</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle2 size={14} className="text-emerald-500" />
+                                      <span>Mark as Paid</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
                               {canDeletePayroll && (
                                 <button
                                   type="button"

@@ -307,6 +307,9 @@ model PayrollRecord {
   employerPension Float
   employerCost    Float
 
+  paymentStatus   String    @default("Draft")
+  paidAt          DateTime?
+
   createdAt DateTime @default(now())
 
   employee Employee @relation(fields: [employeeId], references: [id])
