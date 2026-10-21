@@ -348,6 +348,18 @@ function isEmployeeOnApprovedLeave(employee, dateKey, leaveRequests = []) {
   })
 }
 
+function getEmployeeEffectiveStartDate(employee, attendanceStartDate = '') {
+  const systemStart = attendanceStartDate ? String(attendanceStartDate).slice(0, 10) : ''
+  const empJoin = employee?.joinDate ? String(employee.joinDate).slice(0, 10) : ''
+  const empCreated = employee?.createdAt ? String(employee.createdAt).slice(0, 10) : ''
+  const empStart = empJoin || empCreated
+
+  if (systemStart && empStart) {
+    return systemStart > empStart ? systemStart : empStart
+  }
+  return systemStart || empStart || ''
+}
+
 function buildEmployeeRows(
   employees,
   records,
@@ -355,6 +367,7 @@ function buildEmployeeRows(
   month,
   todayKey = '',
   leaveRequests = [],
+  attendanceStartDate = '',
 ) {
   return employees.map(
     (employee, index) => {
@@ -365,6 +378,11 @@ function buildEmployeeRows(
           year,
           month,
         )
+
+      const effectiveStart = getEmployeeEffectiveStartDate(
+        employee,
+        attendanceStartDate,
+      )
 
       for (
         let day = 1;
@@ -432,13 +450,18 @@ function buildEmployeeRows(
               employeeId: employee.id || employee.employeeId,
             }
           } else if (todayKey && dateKey <= todayKey) {
-            // Scheduled working day in past/today with no punch-in and no approved leave: display as Absent (A)
-            attendance[dateKey] = {
-              isSynthetic: true,
-              isUnrecordedAbsent: true,
-              status: 'ABSENT',
-              date: dateKey,
-              employeeId: employee.id || employee.employeeId,
+            // Only mark Absent if date is ON OR AFTER the effective tracking start date
+            if (!effectiveStart || dateKey >= effectiveStart) {
+              attendance[dateKey] = {
+                isSynthetic: true,
+                isUnrecordedAbsent: true,
+                status: 'ABSENT',
+                date: dateKey,
+                employeeId: employee.id || employee.employeeId,
+              }
+            } else {
+              // Prior to tracking start or prior to employee joining: keep unrecorded
+              attendance[dateKey] = null
             }
           } else {
             // Future weekday: empty
@@ -1162,6 +1185,9 @@ function Attendance() {
   const [leaveRequests, setLeaveRequests] =
     useState([])
 
+  const [attendanceStartDate, setAttendanceStartDate] =
+    useState('')
+
   const [loading, setLoading] =
     useState(true)
 
@@ -1249,6 +1275,7 @@ function Attendance() {
           employeesResponse,
           attendanceResponse,
           leaveResponse,
+          settingsResponse,
         ] = await Promise.all([
           fetch(
             `${API_URL}/employees`,
@@ -1266,6 +1293,13 @@ function Attendance() {
 
           fetch(
             `${API_URL}/leave`,
+            {
+              headers: authHeaders(),
+            },
+          ),
+
+          fetch(
+            `${API_URL}/settings`,
             {
               headers: authHeaders(),
             },
@@ -1314,6 +1348,13 @@ function Attendance() {
                 : []
         }
 
+        let startDateConfig = ''
+        if (settingsResponse && settingsResponse.ok) {
+          const sResult = await settingsResponse.json().catch(() => ({}))
+          startDateConfig =
+            sResult?.attendanceConfiguration?.attendanceStartDate || ''
+        }
+
         setEmployees(
           Array.isArray(
             employeeData,
@@ -1331,6 +1372,7 @@ function Attendance() {
         )
 
         setLeaveRequests(leaveData)
+        setAttendanceStartDate(startDateConfig)
       } catch (error) {
         console.error(
           'Attendance load error:',
@@ -1366,11 +1408,13 @@ function Attendance() {
     socket.on('hr-attendance-update', handleAttendanceUpdate)
     socket.on('hr-leave-request-created', handleAttendanceUpdate)
     socket.on('hr-leave-status-changed', handleAttendanceUpdate)
+    socket.on('hr-settings-updated', handleAttendanceUpdate)
 
     return () => {
       socket.off('hr-attendance-update', handleAttendanceUpdate)
       socket.off('hr-leave-request-created', handleAttendanceUpdate)
       socket.off('hr-leave-status-changed', handleAttendanceUpdate)
+      socket.off('hr-settings-updated', handleAttendanceUpdate)
     }
   }, [loadData])
 
@@ -1417,6 +1461,7 @@ function Attendance() {
         month,
         todayKey,
         leaveRequests,
+        attendanceStartDate,
       ),
     [
       employees,
@@ -1425,6 +1470,7 @@ function Attendance() {
       month,
       todayKey,
       leaveRequests,
+      attendanceStartDate,
     ],
   )
 
@@ -1678,11 +1724,18 @@ function Attendance() {
 
       // If no punch record, approved leave on working day counts as Present
       if (!isTodayWeekend) {
+        const effectiveStart = getEmployeeEffectiveStartDate(
+          employee,
+          attendanceStartDate,
+        )
+        if (effectiveStart && todayKey < effectiveStart) {
+          return false
+        }
         return isEmployeeOnApprovedLeave(employee, todayKey, leaveRequests)
       }
       return false
     }).length
-  }, [activeEmployeeList, databaseRecords, todayKey, isTodayWeekend, leaveRequests])
+  }, [activeEmployeeList, databaseRecords, todayKey, isTodayWeekend, leaveRequests, attendanceStartDate])
 
   const todayCheckedIn =
     todayRecords.filter(
@@ -1739,10 +1792,18 @@ function Attendance() {
         return rev === 'REJECTED' || st === 'ABSENT' || st === 'A'
       }
 
+      const effectiveStart = getEmployeeEffectiveStartDate(
+        employee,
+        attendanceStartDate,
+      )
+      if (effectiveStart && todayKey < effectiveStart) {
+        return false
+      }
+
       const onLeave = isEmployeeOnApprovedLeave(employee, todayKey, leaveRequests)
       return !onLeave
     }).length
-  }, [activeEmployeeList, databaseRecords, todayKey, isTodayWeekend, leaveRequests])
+  }, [activeEmployeeList, databaseRecords, todayKey, isTodayWeekend, leaveRequests, attendanceStartDate])
 
   const [rejectingId, setRejectingId] = useState(null)
 

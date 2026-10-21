@@ -90,6 +90,8 @@ const DEFAULT_SETTINGS = {
   // Stored in the existing Setting table as JSON.
   // ---------------------------------------------------------------
   attendanceConfiguration: {
+    attendanceStartDate: '',
+
     checkInStartTime: '08:00',
 
     requiredCheckInTime: '08:30',
@@ -245,6 +247,10 @@ function normalizeAttendanceConfiguration(value, fallback) {
   }
 
   const result = { ...fallback }
+
+  if (value.attendanceStartDate !== undefined && value.attendanceStartDate !== null) {
+    result.attendanceStartDate = String(value.attendanceStartDate).trim()
+  }
 
   if (value.checkInStartTime !== undefined && value.checkInStartTime !== null && value.checkInStartTime !== '') {
     result.checkInStartTime = formatNormalizedTime(value.checkInStartTime, fallback.checkInStartTime)

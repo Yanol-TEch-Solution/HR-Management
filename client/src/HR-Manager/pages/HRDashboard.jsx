@@ -33,6 +33,7 @@ function HRDashboard() {
   const [attendanceLoading, setAttendanceLoading] = useState(true)
   const [leaveRequests, setLeaveRequests] = useState([])
   const [leaveLoading, setLeaveLoading] = useState(true)
+  const [attendanceStartDate, setAttendanceStartDate] = useState('')
 
   /*
    * =========================================================
@@ -61,6 +62,18 @@ function HRDashboard() {
       status === 'terminated' ||
       status === 'archived'
     )
+  }
+
+  const getEmployeeEffectiveStartDate = (employee, startDate = '') => {
+    const systemStart = startDate ? String(startDate).slice(0, 10) : ''
+    const empJoin = employee?.joinDate ? String(employee.joinDate).slice(0, 10) : ''
+    const empCreated = employee?.createdAt ? String(employee.createdAt).slice(0, 10) : ''
+    const empStart = empJoin || empCreated
+
+    if (systemStart && empStart) {
+      return systemStart > empStart ? systemStart : empStart
+    }
+    return systemStart || empStart || ''
   }
 
   const activeRosterEmployees = useMemo(
@@ -219,7 +232,7 @@ function HRDashboard() {
         const startDate = new Date(today)
         startDate.setDate(today.getDate() - 6)
 
-        const [employeesResponse, attendanceResponse, leaveResponse] =
+        const [employeesResponse, attendanceResponse, leaveResponse, settingsResponse] =
           await Promise.allSettled([
             fetch(`${API_URL}/employees`, {
               headers: authHeaders(),
@@ -233,6 +246,10 @@ function HRDashboard() {
               },
             ),
             fetch(`${API_URL}/leave`, {
+              headers: authHeaders(),
+              cache: 'no-store',
+            }),
+            fetch(`${API_URL}/settings`, {
               headers: authHeaders(),
               cache: 'no-store',
             }),
@@ -277,6 +294,13 @@ function HRDashboard() {
                   : []
           setLeaveRequests(leaveRows)
         }
+
+        if (!cancelled && settingsResponse.status === 'fulfilled' && settingsResponse.value.ok) {
+          const settingsResult = await settingsResponse.value.json().catch(() => ({}))
+          const startDateConfig =
+            settingsResult?.attendanceConfiguration?.attendanceStartDate || ''
+          setAttendanceStartDate(startDateConfig)
+        }
       } catch (error) {
         console.error('Failed to load HR dashboard data:', error)
       } finally {
@@ -316,6 +340,7 @@ function HRDashboard() {
     if (socket) {
       socket.on('hr-leave-request-created', loadDashboardData)
       socket.on('hr-attendance-update', loadDashboardData)
+      socket.on('hr-settings-updated', loadDashboardData)
     }
 
     return () => {
@@ -328,6 +353,7 @@ function HRDashboard() {
       if (socket) {
         socket.off('hr-leave-request-created', loadDashboardData)
         socket.off('hr-attendance-update', loadDashboardData)
+        socket.off('hr-settings-updated', loadDashboardData)
       }
     }
   }, [])
@@ -444,8 +470,14 @@ function HRDashboard() {
               present += 1
             }
           } else if (!isWeekend && isTodayOrPast) {
-            // Working day with no check-in in attendance table -> Absent
-            absent += 1
+            const effectiveStart = getEmployeeEffectiveStartDate(
+              employee,
+              attendanceStartDate,
+            )
+            if (!effectiveStart || dateString >= effectiveStart) {
+              // Working day on or after tracking start date -> Absent
+              absent += 1
+            }
           }
           // On Saturday & Sunday with no record, neither absent nor present is added
         }

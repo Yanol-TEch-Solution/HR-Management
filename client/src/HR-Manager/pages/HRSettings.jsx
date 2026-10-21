@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
   Building2,
+  CalendarDays,
   Check,
   CircleDollarSign,
   Clock3,
@@ -54,6 +55,7 @@ const EMPTY_SETTINGS = {
   },
 
   attendanceConfiguration: {
+    attendanceStartDate: '',
     checkInStartTime: '08:00',
     requiredCheckInTime: '08:30',
     checkOutStartTime: '17:30',
@@ -1522,6 +1524,27 @@ function HRSettings() {
           title="Check-In & Check-Out Schedule"
           description="Set employee check-in and check-out windows and late arrival cutoff times."
         >
+          {/* Tracking Launch Date */}
+          <div className="mb-6 rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
+            <h3 className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
+              <CalendarDays className="h-4 w-4 text-[#0092B8]" />
+              Official Attendance Tracking Launch Date
+            </h3>
+            <p className="mb-3 text-xs text-slate-500">
+              Dates before this official launch date will remain unrecorded (not marked as Absent).
+            </p>
+            <div className="max-w-xs">
+              <Field
+                label="Attendance Tracking Start Date"
+                type="date"
+                value={settings.attendanceConfiguration?.attendanceStartDate || ''}
+                onChange={(value) =>
+                  updateAttendanceConfiguration('attendanceStartDate', value)
+                }
+              />
+            </div>
+          </div>
+
           {/* Work Hours & Punch Times */}
           <div className="mb-6">
             <h3 className="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
