@@ -407,7 +407,8 @@ function HRDashboard() {
               status
             )
           ) {
-            leave += 1
+            // Approved leave counts as present
+            present += 1
           } else if (
             status === 'PRESENT' ||
             status === 'CHECKED_IN' ||
@@ -438,11 +439,15 @@ function HRDashboard() {
           })
 
           if (isOnLeave) {
-            leave += 1
+            // Approved leave on scheduled working day counts as Present
+            if (!isWeekend) {
+              present += 1
+            }
           } else if (!isWeekend && isTodayOrPast) {
             // Working day with no check-in in attendance table -> Absent
             absent += 1
           }
+          // On Saturday & Sunday with no record, neither absent nor present is added
         }
       })
 
@@ -478,7 +483,7 @@ function HRDashboard() {
               status
             )
           ) {
-            leave += 1
+            present += 1
           } else if (
             status === 'PRESENT' ||
             status === 'CHECKED_IN' ||

@@ -325,11 +325,36 @@ function getRecordForDate(
   )
 }
 
+function isEmployeeOnApprovedLeave(employee, dateKey, leaveRequests = []) {
+  if (!leaveRequests || !leaveRequests.length) return false
+  const employeeKeys = [
+    employee?.id,
+    employee?.employeeId,
+    String(employee?.id),
+    String(employee?.employeeId),
+  ].filter(Boolean)
+
+  return leaveRequests.some((req) => {
+    const isApproved =
+      req.approvalStatus === 'Approved' ||
+      String(req.status || '').toUpperCase() === 'APPROVED' ||
+      String(req.approvalStatus || '').toUpperCase() === 'APPROVED'
+    if (!isApproved) return false
+
+    const matchesEmp = employeeKeys.includes(String(req.employeeId))
+    const start = String(req.startDate || '').slice(0, 10)
+    const end = String(req.endDate || '').slice(0, 10)
+    return matchesEmp && start && end && start <= dateKey && dateKey <= end
+  })
+}
+
 function buildEmployeeRows(
   employees,
   records,
   year,
   month,
+  todayKey = '',
+  leaveRequests = [],
 ) {
   return employees.map(
     (employee, index) => {
@@ -353,15 +378,73 @@ function buildEmployeeRows(
             day,
           )
 
+        const dayInfo = getDayInfo(year, month, day)
         const record =
           getRecordForDate(
             records,
             employee,
             dateKey,
           )
+        const onApprovedLeave = isEmployeeOnApprovedLeave(
+          employee,
+          dateKey,
+          leaveRequests,
+        )
 
-        attendance[dateKey] =
-          record
+        if (record) {
+          const rev = String(record.reviewStatus || '').toUpperCase()
+          const isRejected =
+            record.reviewStatus === 'Rejected' || rev === 'REJECTED'
+          const st = String(record.status || '').toUpperCase()
+          const isLeaveStatus = [
+            'SL',
+            'AL',
+            'ML',
+            'OL',
+            'LEAVE',
+            'ON LEAVE',
+            'ON_LEAVE',
+          ].includes(st)
+
+          if (!isRejected && (onApprovedLeave || isLeaveStatus)) {
+            // Approved leave displayed as Present (P)
+            attendance[dateKey] = {
+              ...record,
+              status: 'PRESENT',
+              isLeavePresent: true,
+              originalStatus: record.status,
+            }
+          } else {
+            attendance[dateKey] = record
+          }
+        } else {
+          // No punch-in record for this day
+          if (dayInfo.isWeekend) {
+            // Saturday and Sunday: do not display anything (neither absent nor present)
+            attendance[dateKey] = null
+          } else if (onApprovedLeave) {
+            // Weekday with approved leave: display as Present (P)
+            attendance[dateKey] = {
+              isSynthetic: true,
+              isLeavePresent: true,
+              status: 'PRESENT',
+              date: dateKey,
+              employeeId: employee.id || employee.employeeId,
+            }
+          } else if (todayKey && dateKey <= todayKey) {
+            // Scheduled working day in past/today with no punch-in and no approved leave: display as Absent (A)
+            attendance[dateKey] = {
+              isSynthetic: true,
+              isUnrecordedAbsent: true,
+              status: 'ABSENT',
+              date: dateKey,
+              employeeId: employee.id || employee.employeeId,
+            }
+          } else {
+            // Future weekday: empty
+            attendance[dateKey] = null
+          }
+        }
       }
 
       return {
@@ -447,6 +530,7 @@ function calculateSummary(
       absent += 1
     } else if (
       status === 'PRESENT' ||
+      record.isLeavePresent ||
       (isApproved && record.checkOut)
     ) {
       present += 1
@@ -457,11 +541,15 @@ function calculateSummary(
     }
 
     if (
+      record.isLeavePresent ||
       [
         'SL',
         'AL',
         'ML',
         'OL',
+        'LEAVE',
+        'ON LEAVE',
+        'ON_LEAVE',
       ].includes(status)
     ) {
       leave += 1
@@ -1071,6 +1159,9 @@ function Attendance() {
   const [databaseRecords, setDatabaseRecords] =
     useState([])
 
+  const [leaveRequests, setLeaveRequests] =
+    useState([])
+
   const [loading, setLoading] =
     useState(true)
 
@@ -1157,6 +1248,7 @@ function Attendance() {
         const [
           employeesResponse,
           attendanceResponse,
+          leaveResponse,
         ] = await Promise.all([
           fetch(
             `${API_URL}/employees`,
@@ -1167,6 +1259,13 @@ function Attendance() {
 
           fetch(
             `${API_URL}/attendance?startDate=${monthStart}&endDate=${monthEnd}`,
+            {
+              headers: authHeaders(),
+            },
+          ),
+
+          fetch(
+            `${API_URL}/leave`,
             {
               headers: authHeaders(),
             },
@@ -1203,6 +1302,18 @@ function Attendance() {
         const attendanceData =
           await attendanceResponse.json()
 
+        let leaveData = []
+        if (leaveResponse && leaveResponse.ok) {
+          const lResult = await leaveResponse.json().catch(() => [])
+          leaveData = Array.isArray(lResult)
+            ? lResult
+            : Array.isArray(lResult?.data)
+              ? lResult.data
+              : Array.isArray(lResult?.leave)
+                ? lResult.leave
+                : []
+        }
+
         setEmployees(
           Array.isArray(
             employeeData,
@@ -1218,6 +1329,8 @@ function Attendance() {
             ? attendanceData
             : [],
         )
+
+        setLeaveRequests(leaveData)
       } catch (error) {
         console.error(
           'Attendance load error:',
@@ -1251,8 +1364,13 @@ function Attendance() {
     }
 
     socket.on('hr-attendance-update', handleAttendanceUpdate)
+    socket.on('hr-leave-request-created', handleAttendanceUpdate)
+    socket.on('hr-leave-status-changed', handleAttendanceUpdate)
+
     return () => {
       socket.off('hr-attendance-update', handleAttendanceUpdate)
+      socket.off('hr-leave-request-created', handleAttendanceUpdate)
+      socket.off('hr-leave-status-changed', handleAttendanceUpdate)
     }
   }, [loadData])
 
@@ -1297,12 +1415,16 @@ function Attendance() {
         databaseRecords,
         year,
         month,
+        todayKey,
+        leaveRequests,
       ),
     [
       employees,
       databaseRecords,
       year,
       month,
+      todayKey,
+      leaveRequests,
     ],
   )
 
@@ -1356,11 +1478,8 @@ function Attendance() {
       }
 
       return filteredRows.filter((row) => {
-        const record = getRecordForDate(
-          databaseRecords,
-          row.employee,
-          selectedAttendanceDate,
-        )
+        const record = row.attendance?.[selectedAttendanceDate]
+        if (!record) return false
 
         const status = String(record?.status || '').toUpperCase()
         const isApproved =
@@ -1394,7 +1513,6 @@ function Attendance() {
       })
     }, [
       filteredRows,
-      databaseRecords,
       selectedAttendanceDate,
       attendanceStatusFilter,
     ])
@@ -1521,15 +1639,50 @@ function Attendance() {
       todayKey,
     ])
 
-  const todayPresent =
-    todayRecords.filter(
-      (record) => {
+  const activeEmployeeList = useMemo(() => {
+    return employees.filter(
+      (employee) =>
+        !employee.isArchived &&
+        employee.status !== 'Terminated' &&
+        employee.employmentStatus !== 'Terminated' &&
+        employee.status !== 'Archived'
+    )
+  }, [employees])
+
+  const isTodayWeekend = useMemo(() => {
+    const d = new Date()
+    return d.getDay() === 0 || d.getDay() === 6
+  }, [])
+
+  const todayPresent = useMemo(() => {
+    return activeEmployeeList.filter((employee) => {
+      const employeeKeys = [
+        employee?.id,
+        employee?.employeeId,
+        String(employee?.id),
+        String(employee?.employeeId),
+      ].filter(Boolean)
+
+      const record = databaseRecords.find(
+        (r) => r.date === todayKey && employeeKeys.includes(String(r.employeeId))
+      )
+
+      if (record) {
         const st = String(record.status || '').toUpperCase()
         const rev = String(record.reviewStatus || '').toUpperCase()
         const isApproved = rev === 'APPROVED' || rev === 'ACCEPTED'
+        const isRejected = rev === 'REJECTED'
+        if (isRejected) return false
         return st === 'PRESENT' || (isApproved && Boolean(record.checkOut))
       }
-    ).length
+
+      // If no punch record, approved leave on working day counts as Present
+      if (!isTodayWeekend) {
+        return isEmployeeOnApprovedLeave(employee, todayKey, leaveRequests)
+      }
+      return false
+    }).length
+  }, [activeEmployeeList, databaseRecords, todayKey, isTodayWeekend, leaveRequests])
 
   const todayCheckedIn =
     todayRecords.filter(
@@ -1556,14 +1709,40 @@ function Attendance() {
       }
     ).length
 
-  const todayAbsent =
-    todayRecords.filter(
-      (record) => {
+  const todayAbsent = useMemo(() => {
+    if (isTodayWeekend) {
+      // On Saturday and Sunday, unrecorded is NOT counted as absent
+      return databaseRecords.filter((record) => {
+        if (record.date !== todayKey) return false
+        const st = String(record.status || '').toUpperCase()
+        const rev = String(record.reviewStatus || '').toUpperCase()
+        return rev === 'REJECTED' || st === 'ABSENT' || st === 'A'
+      }).length
+    }
+
+    // On weekdays: active employees without punch-in and without approved leave count as absent
+    return activeEmployeeList.filter((employee) => {
+      const employeeKeys = [
+        employee?.id,
+        employee?.employeeId,
+        String(employee?.id),
+        String(employee?.employeeId),
+      ].filter(Boolean)
+
+      const record = databaseRecords.find(
+        (r) => r.date === todayKey && employeeKeys.includes(String(r.employeeId))
+      )
+
+      if (record) {
         const st = String(record.status || '').toUpperCase()
         const rev = String(record.reviewStatus || '').toUpperCase()
         return rev === 'REJECTED' || st === 'ABSENT' || st === 'A'
       }
-    ).length
+
+      const onLeave = isEmployeeOnApprovedLeave(employee, todayKey, leaveRequests)
+      return !onLeave
+    }).length
+  }, [activeEmployeeList, databaseRecords, todayKey, isTodayWeekend, leaveRequests])
 
   const [rejectingId, setRejectingId] = useState(null)
 
@@ -1829,7 +2008,7 @@ function Attendance() {
       department: row.department,
       date,
       dayName: info?.dayName || '',
-      record: row.attendance?.[date] || null,
+      record: row.attendance?.[date]?.isSynthetic ? null : row.attendance?.[date] || null,
     })
   }
 
@@ -2455,6 +2634,7 @@ function Attendance() {
                                       <StatusBadge
                                         status={
                                           (() => {
+                                            if (record.isLeavePresent) return 'PRESENT'
                                             const rev = String(record.reviewStatus || '').toUpperCase()
                                             const isApproved = record.reviewStatus === 'Approved' || record.reviewStatus === 'Accepted' || rev === 'APPROVED'
                                             const isRejected = record.reviewStatus === 'Rejected' || rev === 'REJECTED'
@@ -2466,6 +2646,12 @@ function Attendance() {
                                           })()
                                         }
                                       />
+
+                                      {record.isLeavePresent && (
+                                        <span className="text-[8px] font-semibold text-amber-600">
+                                          Leave
+                                        </span>
+                                      )}
 
                                       {record.checkIn && (
                                         <span className="text-[9px] font-medium text-slate-500">
