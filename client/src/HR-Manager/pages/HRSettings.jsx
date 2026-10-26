@@ -1618,21 +1618,6 @@ function HRSettings() {
               </div>
             </div>
 
-            <p className="mt-2 text-xs text-slate-500">
-              These four times drive the employee punch buttons directly, with no
-              restart. <strong className="font-semibold text-slate-700">Check-In
-                Opens</strong> is when the employee&rsquo;s Check In button becomes
-              available; <strong className="font-semibold text-slate-700">On-Time
-                Cutoff</strong> is where lateness starts counting. Nothing closes: an
-              employee who arrives late can still check in, and the minutes past the
-              cutoff are recorded against them. The same applies to check-out —
-              the button opens at <strong className="font-semibold text-slate-700">
-                Check-Out Opens</strong> and stays available, while{' '}
-              <strong className="font-semibold text-slate-700">Scheduled Check-Out
-                End</strong> is what an early departure or overtime is measured
-              against. This way no employee can be locked out of recording their
-              own day.
-            </p>
 
             {/* ── What the employee will actually see ──
                 Same arithmetic the employee portal uses, so a change

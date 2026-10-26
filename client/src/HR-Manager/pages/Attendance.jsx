@@ -1217,14 +1217,11 @@ function Attendance() {
       month,
     )
 
-  // Keep the attendance calendar starting from the 23rd, then continue
-  // through the end of the month and wrap around to the 1st.
-  const attendanceDays = [
-    ...Array.from(
-      { length: daysInMonth },
-      (_, index) => ((22 + index) % daysInMonth) + 1,
-    ),
-  ]
+  // Attendance calendar days start from day 1 through the end of the month.
+  const attendanceDays = Array.from(
+    { length: daysInMonth },
+    (_, index) => index + 1,
+  )
 
   const selectedAttendanceDay = Math.min(selectedDay, daysInMonth)
   const selectedAttendanceDate = getDateKey(year, month, selectedAttendanceDay)
