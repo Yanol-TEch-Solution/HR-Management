@@ -111,10 +111,10 @@ export default function SummaryCard({
         }
       }}
       className={[
-        'group relative overflow-hidden rounded-[18px] border border-slate-200/80 bg-[#E8F1F9] p-5',
-        'shadow-[0_3px_14px_rgba(15,23,42,0.04)] ring-1 ring-slate-200/60',
+        'group relative overflow-hidden rounded-[18px] border border-slate-200/80 dark:border-slate-800 bg-[#E8F1F9] dark:bg-[#15181d] p-5',
+        'shadow-[0_3px_14px_rgba(15,23,42,0.04)] ring-1 ring-slate-200/60 dark:ring-slate-800/60',
         'transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(15,23,42,0.09)]',
-        onClick ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-300' : '',
+        onClick ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-700' : '',
         clicked ? 'animate-[statCardClick_700ms_cubic-bezier(.22,1,.36,1)]' : '',
         className,
       ].join(' ')}
@@ -125,18 +125,18 @@ export default function SummaryCard({
           {Icon && <Icon size={20} strokeWidth={1.8} />}
         </div>
 
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/60 text-slate-500 shadow-sm ring-1 ring-slate-200/60 transition-transform duration-300 group-hover:translate-x-0.5">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/60 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 shadow-sm ring-1 ring-slate-200/60 dark:ring-slate-700/60 transition-transform duration-300 group-hover:translate-x-0.5">
           <ArrowRight size={17} />
         </div>
       </div>
 
       <div className="mt-4">
-        <p className="text-[15px] font-semibold tracking-[-0.01em] text-slate-800">
+        <p className="text-[15px] font-semibold tracking-[-0.01em] text-slate-800 dark:text-slate-100">
           {title}
         </p>
 
         {description && (
-          <p className="mt-1 text-[12px] font-medium text-slate-400">
+          <p className="mt-1 text-[12px] font-medium text-slate-400 dark:text-slate-500">
             {description}
           </p>
         )}
@@ -144,10 +144,10 @@ export default function SummaryCard({
 
       <div className="mt-4 flex items-end justify-between gap-3">
         <div>
-          <p className="text-[11px] font-medium text-slate-400">
+          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
             {valueLabel}
           </p>
-          <p className="mt-0.5 text-[27px] font-bold leading-none tracking-tight text-slate-950">
+          <p className="mt-0.5 text-[27px] font-bold leading-none tracking-tight text-slate-950 dark:text-white">
             <AnimatedNumber value={value} />
           </p>
         </div>
@@ -157,7 +157,7 @@ export default function SummaryCard({
             {avatarEmployees.slice(0, 3).map((employee, index) => (
               <div
                 key={employee?.id || employee?.employeeId || index}
-                className={`relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white text-[8px] font-bold ${index > 0 ? '-ml-2' : ''} ${avatarColors[index % avatarColors.length]}`}
+                className={`relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white dark:border-[#15181d] text-[8px] font-bold ${index > 0 ? '-ml-2' : ''} ${avatarColors[index % avatarColors.length]}`}
                 title={employee?.name || 'Employee'}
               >
                 {employee?.photo || employee?.profileImage || employee?.avatar ? (

@@ -470,14 +470,8 @@ function HRDashboard() {
               present += 1
             }
           } else if (!isWeekend && isTodayOrPast) {
-            const effectiveStart = getEmployeeEffectiveStartDate(
-              employee,
-              attendanceStartDate,
-            )
-            if (!effectiveStart || dateString >= effectiveStart) {
-              // Working day on or after tracking start date -> Absent
-              absent += 1
-            }
+            // Working day with no check-in -> Absent starting from day 1
+            absent += 1
           }
           // On Saturday & Sunday with no record, neither absent nor present is added
         }
@@ -803,7 +797,7 @@ function HRDashboard() {
    */
 
   return (
-    <div className="min-h-full bg-[#F3F4F6] text-slate-950">
+    <div className="min-h-full bg-[#f4f5f7] dark:bg-[#0d1015] text-slate-950 dark:text-slate-100 transition-colors duration-300">
       <main className="w-full max-w-[1600px] px-5 py-6 sm:px-8">
         {/* =====================================================
             SHARED PAGE HEADER
@@ -862,35 +856,35 @@ function HRDashboard() {
             ATTENDANCE STATISTIC
         =================================================== */}
 
-        <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_10px_rgba(15,23,42,0.03)] xl:col-span-2">
+        <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#15181d] p-6 shadow-[0_2px_10px_rgba(15,23,42,0.03)] xl:col-span-2 transition-colors duration-300">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-lg font-bold text-slate-950">
+              <h2 className="text-lg font-bold text-slate-950 dark:text-white">
                 Attendance Statistic
               </h2>
 
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 Daily attendance for the last 7 days.
               </p>
 
               <div className="mt-3 flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-xs" />
-                  <span className="text-[11px] font-semibold text-slate-600">
+                  <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                     Present
                   </span>
                 </div>
 
                 <div className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-rose-500 shadow-xs" />
-                  <span className="text-[11px] font-semibold text-slate-600">
+                  <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                     Absent
                   </span>
                 </div>
 
                 <div className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-amber-400 shadow-xs" />
-                  <span className="text-[11px] font-semibold text-slate-600">
+                  <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                     Leave
                   </span>
                 </div>
@@ -899,7 +893,7 @@ function HRDashboard() {
 
             <button
               type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-50 hover:text-slate-700"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-50 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
             >
               <MoreHorizontal
                 size={18}
@@ -1094,73 +1088,73 @@ function HRDashboard() {
             QUICK ACTIONS
         =================================================== */}
 
-        <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_10px_rgba(15,23,42,0.03)]">
-          <h2 className="text-lg font-bold text-slate-950">
+        <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#15181d] p-6 shadow-[0_2px_10px_rgba(15,23,42,0.03)] transition-colors duration-300">
+          <h2 className="text-lg font-bold text-slate-950 dark:text-white">
             Quick Actions
           </h2>
 
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Common HR tasks.
           </p>
 
           <div className="mt-5 space-y-3">
             <a
               href="/hr-manager/employees"
-              className="group flex items-center justify-between rounded-xl border border-slate-200 p-4 transition-all hover:border-cyan-200 hover:bg-cyan-50/40"
+              className="group flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 p-4 transition-all hover:border-cyan-200 hover:bg-cyan-50/40 dark:hover:border-cyan-800 dark:hover:bg-cyan-950/20"
             >
               <div>
-                <p className="text-sm font-semibold text-slate-900">
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                   Manage Employees
                 </p>
 
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   View and manage employee records
                 </p>
               </div>
 
               <ArrowUpRight
                 size={18}
-                className="text-slate-400 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-cyan-600"
+                className="text-slate-400 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-cyan-600 dark:group-hover:text-cyan-400"
               />
             </a>
 
             <a
               href="/hr-manager/attendance"
-              className="group flex items-center justify-between rounded-xl border border-slate-200 p-4 transition-all hover:border-cyan-200 hover:bg-cyan-50/40"
+              className="group flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 p-4 transition-all hover:border-cyan-200 hover:bg-cyan-50/40 dark:hover:border-cyan-800 dark:hover:bg-cyan-950/20"
             >
               <div>
-                <p className="text-sm font-semibold text-slate-900">
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                   Attendance
                 </p>
 
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   Review attendance records
                 </p>
               </div>
 
               <ArrowUpRight
                 size={18}
-                className="text-slate-400 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-cyan-600"
+                className="text-slate-400 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-cyan-600 dark:group-hover:text-cyan-400"
               />
             </a>
 
             <a
               href="/hr-manager/leave"
-              className="group flex items-center justify-between rounded-xl border border-slate-200 p-4 transition-all hover:border-cyan-200 hover:bg-cyan-50/40"
+              className="group flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 p-4 transition-all hover:border-cyan-200 hover:bg-cyan-50/40 dark:hover:border-cyan-800 dark:hover:bg-cyan-950/20"
             >
               <div>
-                <p className="text-sm font-semibold text-slate-900">
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                   Leave Requests
                 </p>
 
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   Review employee leave
                 </p>
               </div>
 
               <ArrowUpRight
                 size={18}
-                className="text-slate-400 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-cyan-600"
+                className="text-slate-400 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-cyan-600 dark:group-hover:text-cyan-400"
               />
             </a>
           </div>
@@ -1176,21 +1170,21 @@ function HRDashboard() {
             EMPLOYEE STATISTICS
         =================================================== */}
 
-        <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_10px_rgba(15,23,42,0.03)]">
+        <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#15181d] p-6 shadow-[0_2px_10px_rgba(15,23,42,0.03)] transition-colors duration-300">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-lg font-bold text-slate-950">
+              <h2 className="text-lg font-bold text-slate-950 dark:text-white">
                 Employee Statistics
               </h2>
 
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 Workforce distribution by department.
               </p>
             </div>
 
             <button
               type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-50 hover:text-slate-700"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-50 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
             >
               <MoreHorizontal
                 size={18}
@@ -1200,7 +1194,7 @@ function HRDashboard() {
 
           {/* Department distribution chart */}
 
-          <div className="mt-7 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+          <div className="mt-7 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-[#181c22] p-4">
             <DonutChart
               data={departmentStats}
               valueKey="count"
@@ -1218,7 +1212,7 @@ function HRDashboard() {
           <div className="mt-7 space-y-3">
             {departmentStats.length ===
             0 ? (
-              <p className="text-center text-sm text-slate-400">
+              <p className="text-center text-sm text-slate-400 dark:text-slate-500">
                 No department data available.
               </p>
             ) : (
@@ -1247,14 +1241,14 @@ function HRDashboard() {
                           }}
                         />
 
-                        <span className="truncate text-xs font-medium text-slate-600">
+                        <span className="truncate text-xs font-medium text-slate-600 dark:text-slate-300">
                           {
                             department.name
                           }
                         </span>
                       </div>
 
-                      <span className="ml-3 text-xs font-bold text-slate-800">
+                      <span className="ml-3 text-xs font-bold text-slate-800 dark:text-slate-100">
                         {
                           department.percentage
                         }
@@ -1268,10 +1262,10 @@ function HRDashboard() {
 
           {/* Workforce Performance */}
 
-          <div className="mt-6 border-t border-slate-100 pt-5">
+          <div className="mt-6 border-t border-slate-100 dark:border-slate-800 pt-5">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
                   <span className="absolute inset-0 animate-performance-icon rounded-lg bg-emerald-400/20" />
 
                   <TrendingUp
@@ -1281,22 +1275,22 @@ function HRDashboard() {
                 </div>
 
                 <div>
-                  <p className="text-xs font-semibold text-slate-700">
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
                     Workforce Performance
                   </p>
 
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500">
                     Based on current employee status
                   </p>
                 </div>
               </div>
 
-              <span className="animate-performance-percentage text-sm font-bold text-emerald-600">
+              <span className="animate-performance-percentage text-sm font-bold text-emerald-600 dark:text-emerald-400">
                 {activePercentage}%
               </span>
             </div>
 
-            <div className="relative h-2 overflow-hidden rounded-full bg-slate-100">
+            <div className="relative h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
               <div
                 className="relative h-full rounded-full bg-emerald-500 transition-[width] duration-1000 ease-out"
                 style={{
@@ -1307,7 +1301,7 @@ function HRDashboard() {
               </div>
             </div>
 
-            <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+            <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
               <span>
                 {activeEmployees}{' '}
                 active employees
@@ -1324,21 +1318,21 @@ function HRDashboard() {
             RECENT EMPLOYEES
         =================================================== */}
 
-        <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.03)]">
-          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+        <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#15181d] shadow-[0_2px_10px_rgba(15,23,42,0.03)] transition-colors duration-300">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-6 py-5">
             <div>
-              <h2 className="text-lg font-bold text-slate-950">
+              <h2 className="text-lg font-bold text-slate-950 dark:text-white">
                 Recent Employees
               </h2>
 
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 Employees currently available in the shared data.
               </p>
             </div>
 
             <a
               href="/hr-manager/employees"
-              className="hidden items-center gap-1 text-sm font-semibold text-cyan-600 transition hover:text-cyan-700 sm:flex"
+              className="hidden items-center gap-1 text-sm font-semibold text-cyan-600 dark:text-cyan-400 transition hover:text-cyan-700 dark:hover:text-cyan-300 sm:flex"
             >
               View all
 
@@ -1350,21 +1344,21 @@ function HRDashboard() {
 
           {employeesLoading ? (
             <div className="px-6 py-12 text-center">
-              <p className="text-sm font-medium text-slate-500">
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
                 Loading employee records...
               </p>
             </div>
           ) : employees.length === 0 ? (
             <div className="px-6 py-12 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400">
                 <Users size={20} />
               </div>
 
-              <p className="mt-3 text-sm font-medium text-slate-700">
+              <p className="mt-3 text-sm font-medium text-slate-700 dark:text-slate-300">
                 No employee records available
               </p>
 
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                 Employee records will appear here once available.
               </p>
             </div>
@@ -1372,21 +1366,21 @@ function HRDashboard() {
             <div className="overflow-x-auto">
               <Table className="w-full min-w-[700px]">
                 <thead>
-                  <tr className="bg-slate-50/70">
-                    <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">#</th>
-                    <th className="px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  <tr className="bg-slate-50/70 dark:bg-[#181c22]">
+                    <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">#</th>
+                    <th className="px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                       Employee
                     </th>
 
-                    <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                       Department
                     </th>
 
-                    <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                       Position
                     </th>
 
-                    <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                       Status
                     </th>
 
@@ -1439,9 +1433,9 @@ function HRDashboard() {
                               employee.employeeId ||
                               index
                             }
-                            className="group border-b border-slate-100 last:border-0 transition-colors hover:bg-slate-50/70"
+                            className="group border-b border-slate-100 dark:border-slate-800/80 last:border-0 transition-colors hover:bg-slate-50/70 dark:hover:bg-[#1a1e26]"
                           >
-                            <td className="px-4 py-4 text-xs font-semibold text-slate-400">{index + 1}</td>
+                            <td className="px-4 py-4 text-xs font-semibold text-slate-400 dark:text-slate-500">{index + 1}</td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
                                 <div
@@ -1458,12 +1452,12 @@ function HRDashboard() {
                                 </div>
 
                                 <div className="min-w-0">
-                                  <p className="truncate text-sm font-semibold text-slate-900">
+                                  <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
                                     {employee.name ||
                                       'Unnamed Employee'}
                                   </p>
 
-                                  <p className="mt-0.5 truncate text-xs text-slate-400">
+                                  <p className="mt-0.5 truncate text-xs text-slate-400 dark:text-slate-500">
                                     {employee.employeeId ||
                                       employee.id ||
                                       'Employee ID unavailable'}
@@ -1473,14 +1467,14 @@ function HRDashboard() {
                             </td>
 
                             <td className="px-4 py-4">
-                              <span className="text-sm font-medium text-slate-600">
+                              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
                                 {employee.department ||
                                   '-'}
                               </span>
                             </td>
 
                             <td className="px-4 py-4">
-                              <span className="text-sm text-slate-500">
+                              <span className="text-sm text-slate-500 dark:text-slate-400">
                                 {employee.jobTitle ||
                                   '-'}
                               </span>

@@ -13,6 +13,9 @@ function HRLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [accessPermissions, setAccessPermissions] = useState(null)
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('hr-theme') === 'dark' || localStorage.getItem('theme') === 'dark'
+  })
 
   // Start from what the account carried at login so the first paint already
   // hides nothing, then replace it with a fresh read.
@@ -90,9 +93,26 @@ function HRLayout() {
     }
   }, [])
 
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [darkMode])
+
+  useEffect(() => {
+    const handleTheme = (e) => {
+      const isDark = Boolean(e.detail?.darkMode)
+      setDarkMode(isDark)
+    }
+    window.addEventListener('hr-theme-change', handleTheme)
+    return () => window.removeEventListener('hr-theme-change', handleTheme)
+  }, [])
+
   return (
     <MessagingProvider portalType="hr">
-    <div className="h-screen overflow-hidden bg-[#F3F4F6]">
+    <div className={`h-screen overflow-hidden transition-colors duration-300 ${darkMode ? 'dark bg-[#0a0d12] text-white' : 'bg-[#f4f5f7] text-slate-900'}`}>
       <HRSidebar
         mobileOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -111,7 +131,7 @@ function HRLayout() {
           onMenuClick={() => setSidebarOpen(true)}
         />
 
-        <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <main className={`min-h-0 flex-1 overflow-y-auto overscroll-contain transition-colors duration-300 ${darkMode ? 'bg-[#0d1015]' : 'bg-[#f4f5f7]'}`}>
           <Outlet context={{ accessPermissions, permissions, reloadAccess: loadAccount }} />
         </main>
       </div>

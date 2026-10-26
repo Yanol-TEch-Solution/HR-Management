@@ -53,7 +53,7 @@ export async function createAnnouncement(req, res) {
       include: { author: { select: { id: true, name: true } } },
     })
 
-    if (!recipientEmployeeId) req.app.get('io')?.emit('announcement:new', announcement)
+    req.app.get('io')?.emit('announcement:new', announcement)
     return res.status(201).json(announcement)
   } catch (error) {
     console.error('Create announcement error:', error)

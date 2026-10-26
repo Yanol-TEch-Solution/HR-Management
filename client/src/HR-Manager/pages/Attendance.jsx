@@ -450,18 +450,13 @@ function buildEmployeeRows(
               employeeId: employee.id || employee.employeeId,
             }
           } else if (todayKey && dateKey <= todayKey) {
-            // Only mark Absent if date is ON OR AFTER the effective tracking start date
-            if (!effectiveStart || dateKey >= effectiveStart) {
-              attendance[dateKey] = {
-                isSynthetic: true,
-                isUnrecordedAbsent: true,
-                status: 'ABSENT',
-                date: dateKey,
-                employeeId: employee.id || employee.employeeId,
-              }
-            } else {
-              // Prior to tracking start or prior to employee joining: keep unrecorded
-              attendance[dateKey] = null
+            // Start recording from day 1: past weekdays without records are marked Absent
+            attendance[dateKey] = {
+              isSynthetic: true,
+              isUnrecordedAbsent: true,
+              status: 'ABSENT',
+              date: dateKey,
+              employeeId: employee.id || employee.employeeId,
             }
           } else {
             // Future weekday: empty
@@ -1152,7 +1147,7 @@ function Attendance() {
     useState(getCurrentYear())
 
   const [selectedDay, setSelectedDay] = useState(new Date().getDate())
-  const [dailyView, setDailyView] = useState(true)
+  const [dailyView, setDailyView] = useState(false)
 
   const [search, setSearch] =
     useState('')
@@ -1721,13 +1716,6 @@ function Attendance() {
 
       // If no punch record, approved leave on working day counts as Present
       if (!isTodayWeekend) {
-        const effectiveStart = getEmployeeEffectiveStartDate(
-          employee,
-          attendanceStartDate,
-        )
-        if (effectiveStart && todayKey < effectiveStart) {
-          return false
-        }
         return isEmployeeOnApprovedLeave(employee, todayKey, leaveRequests)
       }
       return false
@@ -1789,18 +1777,10 @@ function Attendance() {
         return rev === 'REJECTED' || st === 'ABSENT' || st === 'A'
       }
 
-      const effectiveStart = getEmployeeEffectiveStartDate(
-        employee,
-        attendanceStartDate,
-      )
-      if (effectiveStart && todayKey < effectiveStart) {
-        return false
-      }
-
       const onLeave = isEmployeeOnApprovedLeave(employee, todayKey, leaveRequests)
       return !onLeave
     }).length
-  }, [activeEmployeeList, databaseRecords, todayKey, isTodayWeekend, leaveRequests, attendanceStartDate])
+  }, [activeEmployeeList, databaseRecords, todayKey, isTodayWeekend, leaveRequests])
 
   const [rejectingId, setRejectingId] = useState(null)
 

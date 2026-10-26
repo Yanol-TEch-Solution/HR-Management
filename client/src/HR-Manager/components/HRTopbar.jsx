@@ -259,15 +259,15 @@ function HRTopbar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 flex h-[72px] items-center justify-between border-b border-slate-200/80 bg-white/95 px-5 backdrop-blur-xl lg:px-7">
+    <header className="sticky top-0 z-40 flex h-[72px] items-center justify-between border-b border-slate-200/80 bg-white/95 px-5 backdrop-blur-xl lg:px-7 dark:border-slate-800 dark:bg-[#11141a]/95 transition-colors duration-300">
       {/* Left side */}
       <div className="flex min-w-0 items-center">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
             HR Management
           </p>
 
-          <h2 className="mt-0.5 truncate text-[17px] font-bold tracking-[-0.02em] text-slate-950">
+          <h2 className="mt-0.5 truncate text-[17px] font-bold tracking-[-0.02em] text-slate-950 dark:text-white">
             HR Dashboard
           </h2>
         </div>
@@ -280,12 +280,12 @@ function HRTopbar() {
           {searchOpen ? (
             <form
               onSubmit={handleSearchSubmit}
-              className="flex h-10 w-[220px] items-center rounded-xl border border-slate-200 bg-slate-50 px-3 transition-all focus-within:border-slate-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-slate-100 sm:w-[280px]"
+              className="flex h-10 w-[220px] items-center rounded-xl border border-slate-200 bg-slate-50 px-3 transition-all focus-within:border-slate-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-slate-100 sm:w-[280px] dark:border-slate-800 dark:bg-[#15181d] dark:focus-within:border-slate-700 dark:focus-within:bg-[#1c2026] dark:focus-within:ring-slate-800"
             >
               <Search
                 size={17}
                 strokeWidth={1.9}
-                className="shrink-0 text-slate-400"
+                className="shrink-0 text-slate-400 dark:text-slate-500"
               />
 
               <input
@@ -295,7 +295,7 @@ function HRTopbar() {
                   setSearchValue(event.target.value)
                 }
                 placeholder="Search employees by name, ID, or department…"
-                className="ml-2 min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400 placeholder:animate-pulse"
+                className="ml-2 min-w-0 flex-1 bg-transparent text-sm text-slate-800 dark:text-slate-100 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 placeholder:animate-pulse"
               />
 
               <button
@@ -304,7 +304,7 @@ function HRTopbar() {
                   setSearchValue('')
                   setSearchOpen(false)
                 }}
-                className="ml-2 text-xs font-semibold text-slate-400 transition-colors hover:text-slate-700"
+                className="ml-2 text-xs font-semibold text-slate-400 transition-colors hover:text-slate-700 dark:hover:text-slate-200"
                 aria-label="Close search"
               >
                 Esc
@@ -314,7 +314,7 @@ function HRTopbar() {
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-slate-500 transition-all hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-slate-500 transition-all hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:border-slate-800 dark:hover:bg-[#15181d] dark:hover:text-slate-200"
               aria-label="Search"
             >
               <Search size={19} strokeWidth={1.8} />
@@ -324,16 +324,16 @@ function HRTopbar() {
 
         {/* Leave and employee message notifications */}
         <div ref={notificationsRef} className="relative">
-          <button type="button" onClick={() => setNotificationsOpen((open) => !open)} className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-slate-500 transition-all hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900" aria-label="Notifications" aria-expanded={notificationsOpen}>
+          <button type="button" onClick={() => setNotificationsOpen((open) => !open)} className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-slate-500 transition-all hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:border-slate-800 dark:hover:bg-[#15181d] dark:hover:text-slate-200" aria-label="Notifications" aria-expanded={notificationsOpen}>
             <Bell size={19} strokeWidth={1.8} />
-            {notificationCount > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">{notificationCount > 9 ? '9+' : notificationCount}</span>}
+            {notificationCount > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white dark:ring-[#11141a]">{notificationCount > 9 ? '9+' : notificationCount}</span>}
           </button>
           {notificationsOpen && (
-            <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.14)]">
-              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-                <p className="text-sm font-bold text-slate-900">Notifications</p>
+            <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.14)] dark:border-slate-800 dark:bg-[#15181d] dark:shadow-[0_18px_50px_rgba(0,0,0,0.5)]">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-4 py-3">
+                <p className="text-sm font-bold text-slate-900 dark:text-white">Notifications</p>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-400">
+                  <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">
                     {notificationCount > 0 ? `${notificationCount} new` : 'All caught up'}
                   </span>
                   {(visibleUpdates.length > 0 || notificationCount > 0) && (
@@ -347,20 +347,20 @@ function HRTopbar() {
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-1 border-b border-slate-100 p-2">
-                <button type="button" onClick={() => setNotificationTab('updates')} className={`rounded-lg px-1.5 py-2 text-[11px] font-semibold ${notificationTab === 'updates' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>Updates ({visibleUpdates.length})</button>
-                <button type="button" onClick={() => setNotificationTab('leave')} className={`rounded-lg px-1.5 py-2 text-[11px] font-semibold ${notificationTab === 'leave' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>Leave ({unseenPendingRequests.length})</button>
-                <button type="button" onClick={() => setNotificationTab('messages')} className={`rounded-lg px-1.5 py-2 text-[11px] font-semibold ${notificationTab === 'messages' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>Messages ({messaging?.totalUnread || 0})</button>
+              <div className="grid grid-cols-3 gap-1 border-b border-slate-100 dark:border-slate-800 p-2">
+                <button type="button" onClick={() => setNotificationTab('updates')} className={`rounded-lg px-1.5 py-2 text-[11px] font-semibold ${notificationTab === 'updates' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>Updates ({visibleUpdates.length})</button>
+                <button type="button" onClick={() => setNotificationTab('leave')} className={`rounded-lg px-1.5 py-2 text-[11px] font-semibold ${notificationTab === 'leave' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>Leave ({unseenPendingRequests.length})</button>
+                <button type="button" onClick={() => setNotificationTab('messages')} className={`rounded-lg px-1.5 py-2 text-[11px] font-semibold ${notificationTab === 'messages' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>Messages ({messaging?.totalUnread || 0})</button>
               </div>
               {notificationTab === 'updates' ? (
                 visibleUpdates.length ? <div className="max-h-80 overflow-y-auto">{visibleUpdates.map((update) => {
                   const UpdateIcon = update.type === 'birthday' ? Cake : update.type === 'payroll' ? CircleDollarSign : Bell
-                  return <button key={update.id} type="button" onClick={() => openSystemUpdate(update)} className="flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3.5 text-left transition hover:bg-slate-50"><span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-[#0092B8]"><UpdateIcon size={17} /></span><span className="min-w-0 flex-1"><span className="block text-xs font-bold text-slate-900">{update.title}</span><span className="mt-1 block text-xs leading-5 text-slate-500">{update.message}</span><span className="mt-2 block text-[11px] font-bold text-[#0092B8]">{update.action} →</span></span></button>
-                })}</div> : <p className="px-4 py-7 text-center text-xs text-slate-500">No actionable HR updates right now.</p>
+                  return <button key={update.id} type="button" onClick={() => openSystemUpdate(update)} className="flex w-full items-start gap-3 border-b border-slate-100 dark:border-slate-800/80 px-4 py-3.5 text-left transition hover:bg-slate-50 dark:hover:bg-[#1a1e26]"><span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-50 dark:bg-cyan-950/40 text-[#0092B8]"><UpdateIcon size={17} /></span><span className="min-w-0 flex-1"><span className="block text-xs font-bold text-slate-900 dark:text-white">{update.title}</span><span className="mt-1 block text-xs leading-5 text-slate-500 dark:text-slate-400">{update.message}</span><span className="mt-2 block text-[11px] font-bold text-[#0092B8]">{update.action} →</span></span></button>
+                })}</div> : <p className="px-4 py-7 text-center text-xs text-slate-500 dark:text-slate-400">No actionable HR updates right now.</p>
               ) : notificationTab === 'leave' ? (
-                pendingRequests.length ? <div className="max-h-72 overflow-y-auto">{pendingRequests.slice(0, 6).map((request) => <button key={request.id} type="button" onClick={() => handleOpenLeaveRequest(request)} className="w-full border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50"><p className="text-xs font-bold text-slate-900">{request.employeeName || 'Employee'}</p><p className="mt-1 text-xs text-slate-500">{request.leaveType || 'Leave'} · {request.days || 0} day(s)</p><p className="mt-1 text-[10px] text-slate-400">{request.startDate || '—'} to {request.endDate || '—'}</p></button>)}</div> : <p className="px-4 py-6 text-center text-xs text-slate-500">No pending leave requests.</p>
+                pendingRequests.length ? <div className="max-h-72 overflow-y-auto">{pendingRequests.slice(0, 6).map((request) => <button key={request.id} type="button" onClick={() => handleOpenLeaveRequest(request)} className="w-full border-b border-slate-100 dark:border-slate-800/80 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-[#1a1e26]"><p className="text-xs font-bold text-slate-900 dark:text-white">{request.employeeName || 'Employee'}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{request.leaveType || 'Leave'} · {request.days || 0} day(s)</p><p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">{request.startDate || '—'} to {request.endDate || '—'}</p></button>)}</div> : <p className="px-4 py-6 text-center text-xs text-slate-500 dark:text-slate-400">No pending leave requests.</p>
               ) : (
-                messaging?.contacts?.filter((contact) => contact.lastMessage || contact.unread > 0).length ? <div className="max-h-72 overflow-y-auto">{messaging.contacts.filter((contact) => contact.lastMessage || contact.unread > 0).slice(0, 8).map((contact) => <button key={contact.id} type="button" onClick={() => handleOpenContactMessage(contact)} className="w-full border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50"><div className="flex items-center justify-between gap-3"><p className="truncate text-xs font-bold text-slate-900">{contact.name}</p>{contact.unread > 0 && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700">{contact.unread} new</span>}</div><p className="mt-1 truncate text-xs text-slate-500">{contact.lastMessage?.text || 'Open conversation'}</p></button>)}</div> : <p className="px-4 py-6 text-center text-xs text-slate-500">No employee messages yet.</p>
+                messaging?.contacts?.filter((contact) => contact.lastMessage || contact.unread > 0).length ? <div className="max-h-72 overflow-y-auto">{messaging.contacts.filter((contact) => contact.lastMessage || contact.unread > 0).slice(0, 8).map((contact) => <button key={contact.id} type="button" onClick={() => handleOpenContactMessage(contact)} className="w-full border-b border-slate-100 dark:border-slate-800/80 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-[#1a1e26]"><div className="flex items-center justify-between gap-3"><p className="truncate text-xs font-bold text-slate-900 dark:text-white">{contact.name}</p>{contact.unread > 0 && <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-400">{contact.unread} new</span>}</div><p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{contact.lastMessage?.text || 'Open conversation'}</p></button>)}</div> : <p className="px-4 py-6 text-center text-xs text-slate-500 dark:text-slate-400">No employee messages yet.</p>
               )}
             </div>
           )}
@@ -371,11 +371,11 @@ function HRTopbar() {
           <button
             type="button"
             onClick={() => setProfileOpen((current) => !current)}
-            className="group flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-2.5 py-2 transition-all hover:border-slate-300 hover:bg-slate-50"
+            className="group flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-2.5 py-2 transition-all hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-[#15181d] dark:hover:border-slate-700 dark:hover:bg-[#1c2026]"
             aria-expanded={profileOpen}
             aria-haspopup="menu"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm dark:bg-slate-800">
               <UserRound
                 size={17}
                 strokeWidth={1.9}
@@ -383,11 +383,11 @@ function HRTopbar() {
             </div>
 
             <div className="hidden text-left sm:block">
-              <p className="text-[12px] font-bold leading-4 text-slate-900">
+              <p className="text-[12px] font-bold leading-4 text-slate-900 dark:text-white">
                 HR Manager
               </p>
 
-              <p className="text-[10px] font-medium leading-4 text-slate-400">
+              <p className="text-[10px] font-medium leading-4 text-slate-400 dark:text-slate-500">
                 Administrator
               </p>
             </div>
@@ -395,7 +395,7 @@ function HRTopbar() {
             <ChevronDown
               size={16}
               strokeWidth={1.8}
-              className={`hidden text-slate-400 transition-transform sm:block ${
+              className={`hidden text-slate-400 dark:text-slate-500 transition-transform sm:block ${
                 profileOpen ? 'rotate-180' : ''
               }`}
             />
@@ -404,19 +404,19 @@ function HRTopbar() {
           {profileOpen && (
             <div
               role="menu"
-              className="absolute right-0 top-[calc(100%+10px)] w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_18px_50px_rgba(15,23,42,0.12)]"
+              className="absolute right-0 top-[calc(100%+10px)] w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_18px_50px_rgba(15,23,42,0.12)] dark:border-slate-800 dark:bg-[#15181d] dark:shadow-[0_18px_50px_rgba(0,0,0,0.5)]"
             >
               <div className="px-3 py-3">
-                <p className="text-sm font-bold text-slate-900">
+                <p className="text-sm font-bold text-slate-900 dark:text-white">
                   HR Manager
                 </p>
 
-                <p className="mt-0.5 text-xs text-slate-400">
+                <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
                   Administrator
                 </p>
               </div>
 
-              <div className="h-px bg-slate-100" />
+              <div className="h-px bg-slate-100 dark:bg-slate-800" />
 
               <button
                 type="button"
@@ -425,7 +425,7 @@ function HRTopbar() {
                   setProfileOpen(false)
                   navigate('/hr-manager/settings')
                 }}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-[#1e232b] dark:hover:text-white"
               >
                 <Settings
                   size={17}
@@ -439,7 +439,7 @@ function HRTopbar() {
                 type="button"
                 role="menuitem"
                 onClick={handleLogout}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-950/30"
               >
                 <LogOut
                   size={17}

@@ -101,6 +101,7 @@ function Topbar() {
                       setNotifOpen(false)
                       dismissNotification(n.id)
                     } else if (n.type === 'announcement') {
+                      navigate('/employer/announcements')
                       dismissNotification(n.id)
                       setNotifOpen(false)
                     }
@@ -119,7 +120,7 @@ function Topbar() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <p className={`text-xs font-semibold text-gray-800 dark:text-gray-100 ${n.type === 'announcement' ? '' : 'truncate'}`}>{n.title}</p>
-                          {n.unread && <span className="w-1.5 h-1.5 rounded-full bg-gray-950 dark:bg-gray-100 shrink-0" />}
+                          {n.unread && <span className="w-1.5 h-1.5 rounded-full bg-cyan-600 dark:bg-cyan-400 shrink-0" />}
                         </div>
                         <p className="break-words text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">{n.message}</p>
                         {n.type === 'announcement' && <span className="mt-2 inline-flex rounded-full bg-cyan-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#007a99] dark:bg-cyan-950/50 dark:text-cyan-300">{n.category}{n.priority !== 'Normal' ? ` · ${n.priority}` : ''}</span>}
@@ -129,12 +130,24 @@ function Topbar() {
                   )
                 })}
               </div>
-              <div className="p-2 border-t border-gray-100 dark:border-[#262b31]">
+              <div className="flex items-center gap-2 p-2 border-t border-gray-100 dark:border-[#262b31]">
                 <button
-                  onClick={() => navigate('/employer/inbox')}
-                  className="w-full py-2 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#1c2026] transition-colors"
+                  onClick={() => {
+                    navigate('/employer/inbox')
+                    setNotifOpen(false)
+                  }}
+                  className="flex-1 py-2 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#1c2026] transition-colors"
                 >
                   Open Inbox
+                </button>
+                <button
+                  onClick={() => {
+                    navigate('/employer/announcements')
+                    setNotifOpen(false)
+                  }}
+                  className="flex-1 py-2 rounded-xl text-xs font-semibold text-[#007a99] dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/40 hover:bg-cyan-100 dark:hover:bg-cyan-900/40 transition-colors"
+                >
+                  Announcements
                 </button>
               </div>
             </div>

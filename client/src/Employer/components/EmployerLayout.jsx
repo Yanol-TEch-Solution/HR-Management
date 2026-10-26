@@ -5,6 +5,7 @@ import {
   BarChart3,
   ChevronDown,
   LayoutDashboard,
+  Megaphone,
   Menu,
   MessageSquare,
   Search,
@@ -33,6 +34,12 @@ const EMPLOYER_SEARCH_ENTRIES = [
       { label: 'Attendance', path: '/employer/attendance' },
       { label: 'Leave', path: '/employer/leave' },
     ],
+  },
+  {
+    id: 'announcements',
+    section: 'Company',
+    icon: Megaphone,
+    items: [{ label: 'Announcements', path: '/employer/announcements' }],
   },
   {
     id: 'finance',
@@ -231,6 +238,22 @@ function EmployerLayout() {
             >
               <LayoutDashboard size={18} className="shrink-0 text-gray-500" />
               {!collapsed && <span>Dashboard</span>}
+            </Link>
+            )}
+
+            {/* Announcements Item */}
+            {(!isSearching || matches('Announcements')) && (
+            <Link
+              to="/employer/announcements"
+              className={`relative flex items-center gap-3 border-l-[3px] px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap ${
+                isRouteActive('/employer/announcements')
+                  ? 'border-gray-950 bg-gray-100 text-gray-950 font-semibold dark:border-white dark:bg-[#1c2026] dark:text-white'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-[#1c2026]'
+              }`}
+              title={collapsed ? 'Announcements' : undefined}
+            >
+              <Megaphone size={18} className="shrink-0 text-[#0092B8] dark:text-cyan-400" />
+              {!collapsed && <span>Announcements</span>}
             </Link>
             )}
 

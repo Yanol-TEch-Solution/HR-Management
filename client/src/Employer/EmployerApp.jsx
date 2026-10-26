@@ -10,6 +10,7 @@ import Reports from './pages/Reports'
 import EmployeeSettingsPage from './pages/EmployeeSettings'
 import Profile from './pages/Profile'
 import Inbox from './pages/Inbox'
+import Announcements from './pages/Announcements'
 
 function EmployerApp() {
   return (
@@ -21,6 +22,7 @@ function EmployerApp() {
           <Route path="attendance" element={<Attendance />} />
           <Route path="leave" element={<Leave />} />
           <Route path="time-off" element={<Leave />} />
+          <Route path="announcements" element={<Announcements />} />
 
           {/* Payroll & Finance routes */}
           <Route path="payroll" element={<Payroll />} />

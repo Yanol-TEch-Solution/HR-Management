@@ -110,18 +110,26 @@ function isVisible(item, permissions) {
 
 function HRSidebar({ mobileOpen = false, onClose, permissions = [] }) {
   const [darkMode, setDarkMode] = useState(() => {
-    return localStorage.getItem('hr-theme') === 'dark'
+    return localStorage.getItem('hr-theme') === 'dark' || localStorage.getItem('theme') === 'dark'
   })
 
   const [hoveredItem, setHoveredItem] = useState(null)
 
   useEffect(() => {
-    localStorage.setItem('hr-theme', darkMode ? 'dark' : 'light')
+    const isDark = Boolean(darkMode)
+    localStorage.setItem('hr-theme', isDark ? 'dark' : 'light')
+    localStorage.setItem('theme', isDark ? 'dark' : 'light')
+
+    if (isDark) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
 
     window.dispatchEvent(
       new CustomEvent('hr-theme-change', {
         detail: {
-          darkMode,
+          darkMode: isDark,
         },
       }),
     )

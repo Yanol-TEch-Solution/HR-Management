@@ -15,6 +15,7 @@ import {
   Landmark,
   BarChart3,
   CircleDollarSign,
+  Megaphone,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -576,6 +577,21 @@ function Dashboard() {
           <ArrowRight size={16} className="text-gray-400 group-hover:translate-x-1 transition-transform" />
         </Link>
 
+        <Link
+          to="/employer/announcements"
+          className="p-4 rounded-2xl bg-white dark:bg-[#15181d] border border-gray-200/90 dark:border-[#262b31] shadow-2xs hover:border-cyan-300 dark:hover:border-cyan-700 transition-all group flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-50 dark:bg-cyan-950/40 text-[#0092B8] dark:text-cyan-400 flex items-center justify-center">
+              <Megaphone size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-gray-950 dark:text-gray-100">Announcements</p>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">Notices from HR Admin</p>
+            </div>
+          </div>
+          <ArrowRight size={16} className="text-gray-400 group-hover:translate-x-1 transition-transform" />
+        </Link>
       </div>
 
       {/* ─────────────────────────────────────────────────────────────
