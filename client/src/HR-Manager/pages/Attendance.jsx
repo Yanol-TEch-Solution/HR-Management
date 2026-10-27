@@ -360,6 +360,33 @@ function getEmployeeEffectiveStartDate(employee, attendanceStartDate = '') {
   return systemStart || empStart || ''
 }
 
+function isCheckOutTimePassed(config) {
+  const checkOutTime =
+    config?.checkOutStartTime || config?.checkOutEndTime || '17:30'
+  const parts = String(checkOutTime).split(':').map(Number)
+  const targetMinutes =
+    (Number.isFinite(parts[0]) ? parts[0] : 17) * 60 +
+    (Number.isFinite(parts[1]) ? parts[1] : 30)
+
+  let currentMinutes
+  try {
+    const timeParts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Addis_Ababa',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(new Date())
+    const h = Number(timeParts.find((p) => p.type === 'hour')?.value ?? 0)
+    const m = Number(timeParts.find((p) => p.type === 'minute')?.value ?? 0)
+    currentMinutes = h * 60 + m
+  } catch {
+    const now = new Date()
+    currentMinutes = now.getHours() * 60 + now.getMinutes()
+  }
+
+  return currentMinutes >= targetMinutes
+}
+
 function buildEmployeeRows(
   employees,
   records,
@@ -368,6 +395,7 @@ function buildEmployeeRows(
   todayKey = '',
   leaveRequests = [],
   attendanceStartDate = '',
+  isCheckOutPassed = false,
 ) {
   return employees.map(
     (employee, index) => {
@@ -449,8 +477,11 @@ function buildEmployeeRows(
               date: dateKey,
               employeeId: employee.id || employee.employeeId,
             }
-          } else if (todayKey && dateKey <= todayKey) {
-            // Start recording from day 1: past weekdays without records are marked Absent
+          } else if (
+            todayKey &&
+            (dateKey < todayKey || (dateKey === todayKey && isCheckOutPassed))
+          ) {
+            // Past weekdays without records, or today after checkout time has passed, are marked Absent
             attendance[dateKey] = {
               isSynthetic: true,
               isUnrecordedAbsent: true,
@@ -459,7 +490,7 @@ function buildEmployeeRows(
               employeeId: employee.id || employee.employeeId,
             }
           } else {
-            // Future weekday: empty
+            // Future weekday or today before checkout time has passed: empty
             attendance[dateKey] = null
           }
         }
@@ -1183,6 +1214,26 @@ function Attendance() {
   const [attendanceStartDate, setAttendanceStartDate] =
     useState('')
 
+  const [attendanceConfig, setAttendanceConfig] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hr_attendance_config')
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
+
+  const [currentTimeTick, setCurrentTimeTick] = useState(() => Date.now())
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTimeTick(Date.now()), 30000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const isCheckOutPassed = useMemo(() => {
+    return isCheckOutTimePassed(attendanceConfig)
+  }, [attendanceConfig, currentTimeTick])
+
   const [loading, setLoading] =
     useState(true)
 
@@ -1345,6 +1396,9 @@ function Attendance() {
           const sResult = await settingsResponse.json().catch(() => ({}))
           startDateConfig =
             sResult?.attendanceConfiguration?.attendanceStartDate || ''
+          if (sResult?.attendanceConfiguration) {
+            setAttendanceConfig(sResult.attendanceConfiguration)
+          }
         }
 
         setEmployees(
@@ -1439,10 +1493,22 @@ function Attendance() {
       ]
     }, [employees])
 
-  const todayKey =
-    new Date()
-      .toISOString()
-      .slice(0, 10)
+  const todayKey = useMemo(() => {
+    try {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Africa/Addis_Ababa',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).formatToParts(new Date())
+      const y = parts.find((p) => p.type === 'year')?.value
+      const m = parts.find((p) => p.type === 'month')?.value
+      const d = parts.find((p) => p.type === 'day')?.value
+      return `${y}-${m}-${d}`
+    } catch {
+      return new Date().toISOString().slice(0, 10)
+    }
+  }, [])
 
   const rows = useMemo(
     () =>
@@ -1454,6 +1520,7 @@ function Attendance() {
         todayKey,
         leaveRequests,
         attendanceStartDate,
+        isCheckOutPassed,
       ),
     [
       employees,
@@ -1463,6 +1530,7 @@ function Attendance() {
       todayKey,
       leaveRequests,
       attendanceStartDate,
+      isCheckOutPassed,
     ],
   )
 
@@ -1777,10 +1845,13 @@ function Attendance() {
         return rev === 'REJECTED' || st === 'ABSENT' || st === 'A'
       }
 
+      // Active employees without punch-in and without approved leave count as absent ONLY after checkout time has passed
+      if (!isCheckOutPassed) return false
+
       const onLeave = isEmployeeOnApprovedLeave(employee, todayKey, leaveRequests)
       return !onLeave
     }).length
-  }, [activeEmployeeList, databaseRecords, todayKey, isTodayWeekend, leaveRequests])
+  }, [activeEmployeeList, databaseRecords, todayKey, isTodayWeekend, leaveRequests, isCheckOutPassed])
 
   const [rejectingId, setRejectingId] = useState(null)
 

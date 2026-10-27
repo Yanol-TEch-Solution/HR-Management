@@ -34,6 +34,43 @@ function HRDashboard() {
   const [leaveRequests, setLeaveRequests] = useState([])
   const [leaveLoading, setLeaveLoading] = useState(true)
   const [attendanceStartDate, setAttendanceStartDate] = useState('')
+  const [attendanceConfig, setAttendanceConfig] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hr_attendance_config')
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
+
+  const isCheckOutPassed = useMemo(() => {
+    const checkOutTime =
+      attendanceConfig?.checkOutStartTime ||
+      attendanceConfig?.checkOutEndTime ||
+      '17:30'
+    const parts = String(checkOutTime).split(':').map(Number)
+    const targetMinutes =
+      (Number.isFinite(parts[0]) ? parts[0] : 17) * 60 +
+      (Number.isFinite(parts[1]) ? parts[1] : 30)
+
+    let currentMinutes
+    try {
+      const timeParts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Africa/Addis_Ababa',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).formatToParts(new Date())
+      const h = Number(timeParts.find((p) => p.type === 'hour')?.value ?? 0)
+      const m = Number(timeParts.find((p) => p.type === 'minute')?.value ?? 0)
+      currentMinutes = h * 60 + m
+    } catch {
+      const now = new Date()
+      currentMinutes = now.getHours() * 60 + now.getMinutes()
+    }
+
+    return currentMinutes >= targetMinutes
+  }, [attendanceConfig])
 
   /*
    * =========================================================
@@ -300,6 +337,9 @@ function HRDashboard() {
           const startDateConfig =
             settingsResult?.attendanceConfiguration?.attendanceStartDate || ''
           setAttendanceStartDate(startDateConfig)
+          if (settingsResult?.attendanceConfiguration) {
+            setAttendanceConfig(settingsResult.attendanceConfiguration)
+          }
         }
       } catch (error) {
         console.error('Failed to load HR dashboard data:', error)
@@ -384,7 +424,8 @@ function HRDashboard() {
       const dayNumber = String(date.getDate()).padStart(2, '0')
       const dateString = `${year}-${month}-${dayNumber}`
       const isWeekend = date.getDay() === 0 || date.getDay() === 6
-      const isTodayOrPast = dateString <= todayDateString
+      const isPast = dateString < todayDateString
+      const isToday = dateString === todayDateString
 
       let present = 0
       let absent = 0
@@ -469,8 +510,8 @@ function HRDashboard() {
             if (!isWeekend) {
               present += 1
             }
-          } else if (!isWeekend && isTodayOrPast) {
-            // Working day with no check-in -> Absent starting from day 1
+          } else if (!isWeekend && (isPast || (isToday && isCheckOutPassed))) {
+            // Working day with no check-in -> Absent after checkout time has passed
             absent += 1
           }
           // On Saturday & Sunday with no record, neither absent nor present is added
@@ -535,7 +576,7 @@ function HRDashboard() {
         total: present + absent + leave,
       }
     })
-  }, [attendanceRecords, activeRosterEmployees, leaveRequests])
+  }, [attendanceRecords, activeRosterEmployees, leaveRequests, isCheckOutPassed])
 
   /*
    * =========================================================
